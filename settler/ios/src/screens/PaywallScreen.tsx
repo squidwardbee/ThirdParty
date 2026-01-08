@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { PurchasesPackage } from 'react-native-purchases';
 import { colors, typography, spacing, borderRadius } from '../lib/theme';
 import {
   getOfferings,
@@ -31,10 +30,10 @@ const PREMIUM_FEATURES = [
 ];
 
 export default function PaywallScreen({ navigation }: Props) {
-  const [packages, setPackages] = useState<PurchasesPackage[]>([]);
+  const [packages, setPackages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
-  const [selectedPackage, setSelectedPackage] = useState<PurchasesPackage | null>(null);
+  const [selectedPackage, setSelectedPackage] = useState<any | null>(null);
 
   useEffect(() => {
     loadOfferings();
@@ -92,12 +91,12 @@ export default function PaywallScreen({ navigation }: Props) {
     }
   };
 
-  const formatPrice = (pkg: PurchasesPackage): string => {
+  const formatPrice = (pkg: any): string => {
     const product = pkg.product;
     return product.priceString;
   };
 
-  const formatPeriod = (pkg: PurchasesPackage): string => {
+  const formatPeriod = (pkg: any): string => {
     switch (pkg.packageType) {
       case 'WEEKLY':
         return 'per week';

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { colors, typography, spacing, borderRadius } from '../lib/theme';
 import { useAppStore, Turn } from '../lib/store';
 import { api } from '../lib/api';
 import { RootStackParamList } from '../navigation';
+import { startRecording as startAudioRecording, stopRecording as stopAudioRecording, cleanupRecording } from '../lib/audio';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TurnBased'>;
 
@@ -26,30 +27,26 @@ export default function TurnBasedScreen({ navigation, route }: Props) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const recordingRef = useRef<Audio.Recording | null>(null);
-
   const currentSpeakerName = currentSpeaker === 'person_a' ? personAName : personBName;
   const speakerColor = currentSpeaker === 'person_a' ? colors.personA : colors.personB;
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanupRecording();
+    };
+  }, []);
+
   const startRecording = async () => {
     try {
-      // Request permissions
+      // Request permissions first
       const { granted } = await Audio.requestPermissionsAsync();
       if (!granted) {
         Alert.alert('Permission Required', 'Microphone access is needed to record arguments.');
         return;
       }
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      const recording = new Audio.Recording();
-      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      await recording.startAsync();
-
-      recordingRef.current = recording;
+      await startAudioRecording();
       setIsRecording(true);
       setCurrentTranscript('Recording... Tap stop when finished.');
     } catch (error) {
@@ -59,14 +56,9 @@ export default function TurnBasedScreen({ navigation, route }: Props) {
   };
 
   const stopRecording = async () => {
-    if (!recordingRef.current) return;
-
     try {
       setIsRecording(false);
-      await recordingRef.current.stopAndUnloadAsync();
-
-      const uri = recordingRef.current.getURI();
-      recordingRef.current = null;
+      const uri = await stopAudioRecording();
 
       // TODO: Send audio to Whisper for transcription
       // For now, use placeholder text

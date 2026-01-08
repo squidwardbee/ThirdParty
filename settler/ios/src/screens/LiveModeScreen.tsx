@@ -13,6 +13,7 @@ import { Audio } from 'expo-av';
 import { colors, typography, spacing, borderRadius } from '../lib/theme';
 import { api } from '../lib/api';
 import { RootStackParamList } from '../navigation';
+import { startRecording as startAudioRecording, stopRecording as stopAudioRecording, cleanupRecording } from '../lib/audio';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LiveMode'>;
 
@@ -24,7 +25,6 @@ export default function LiveModeScreen({ navigation, route }: Props) {
   const [transcript, setTranscript] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const recordingRef = useRef<Audio.Recording | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -32,9 +32,7 @@ export default function LiveModeScreen({ navigation, route }: Props) {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
-      if (recordingRef.current) {
-        recordingRef.current.stopAndUnloadAsync();
-      }
+      cleanupRecording();
     };
   }, []);
 
@@ -52,16 +50,7 @@ export default function LiveModeScreen({ navigation, route }: Props) {
         return;
       }
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      const recording = new Audio.Recording();
-      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      await recording.startAsync();
-
-      recordingRef.current = recording;
+      await startAudioRecording();
       setIsRecording(true);
       setRecordingDuration(0);
 
@@ -79,8 +68,6 @@ export default function LiveModeScreen({ navigation, route }: Props) {
   };
 
   const stopAndJudge = async () => {
-    if (!recordingRef.current) return;
-
     setIsSubmitting(true);
 
     try {
@@ -90,9 +77,7 @@ export default function LiveModeScreen({ navigation, route }: Props) {
         timerRef.current = null;
       }
 
-      await recordingRef.current.stopAndUnloadAsync();
-      const uri = recordingRef.current.getURI();
-      recordingRef.current = null;
+      const uri = await stopAudioRecording();
       setIsRecording(false);
 
       // TODO: Send audio to server for transcription with speaker diarization
@@ -137,10 +122,7 @@ export default function LiveModeScreen({ navigation, route }: Props) {
             if (timerRef.current) {
               clearInterval(timerRef.current);
             }
-            if (recordingRef.current) {
-              await recordingRef.current.stopAndUnloadAsync();
-              recordingRef.current = null;
-            }
+            await cleanupRecording();
             navigation.goBack();
           },
         },

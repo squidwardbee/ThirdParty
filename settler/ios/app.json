@@ -14,12 +14,14 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "app.settler.ios",
+      "bundleIdentifier": "xyz.thirdpart.app",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Settler needs access to your microphone to record arguments for judging.",
         "NSPhotoLibraryUsageDescription": "Settler needs access to your photos to save verdict screenshots.",
         "NSPhotoLibraryAddUsageDescription": "Settler needs permission to save verdict screenshots to your photo library.",
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       },
       "config": {
         "usesNonExemptEncryption": false
@@ -34,7 +36,12 @@
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.READ_EXTERNAL_STORAGE"
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO"
       ]
     },
     "plugins": [
@@ -49,9 +56,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "YOUR_EAS_PROJECT_ID"
+        "projectId": "5316048e-1ed6-440b-9fba-4d7d0f491635"
       }
     },
-    "owner": "your-expo-account"
+    "owner": "evanwaang"
   }
 }
