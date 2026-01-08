@@ -7,10 +7,14 @@ import {
   ScrollView,
   Share,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Audio } from 'expo-av';
+import ViewShot, { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
+import * as MediaLibrary from 'expo-media-library';
 import { colors, typography, spacing, borderRadius } from '../lib/theme';
 import { api } from '../lib/api';
 import { useAppStore } from '../lib/store';
@@ -40,6 +44,7 @@ export default function JudgmentScreen({ navigation, route }: Props) {
   const [loading, setLoading] = useState(true);
 
   const soundRef = useRef<Audio.Sound | null>(null);
+  const viewShotRef = useRef<ViewShot>(null);
   const addArgument = useAppStore((state) => state.addArgument);
 
   useEffect(() => {
@@ -154,6 +159,40 @@ export default function JudgmentScreen({ navigation, route }: Props) {
     }
   };
 
+  const handleScreenshot = async () => {
+    if (!viewShotRef.current) return;
+
+    try {
+      // Capture the view as an image
+      const uri = await captureRef(viewShotRef, {
+        format: 'png',
+        quality: 1,
+      });
+
+      // Check if sharing is available
+      const isAvailable = await Sharing.isAvailableAsync();
+
+      if (isAvailable) {
+        await Sharing.shareAsync(uri, {
+          mimeType: 'image/png',
+          dialogTitle: 'Share Verdict Screenshot',
+        });
+      } else {
+        // Fallback: Save to camera roll
+        const { status } = await MediaLibrary.requestPermissionsAsync();
+        if (status === 'granted') {
+          await MediaLibrary.saveToLibraryAsync(uri);
+          Alert.alert('Saved!', 'Screenshot saved to your photo library');
+        } else {
+          Alert.alert('Permission Required', 'Please grant permission to save photos');
+        }
+      }
+    } catch (error) {
+      console.error('Screenshot error:', error);
+      Alert.alert('Error', 'Failed to capture screenshot');
+    }
+  };
+
   const handleDone = () => {
     navigation.popToTop();
   };
@@ -191,24 +230,56 @@ export default function JudgmentScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>The Verdict</Text>
-          <Text style={styles.participants}>
-            {argument.personAName} vs {argument.personBName}
-          </Text>
-        </View>
+        {/* Capturable content */}
+        <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
+          <View style={styles.captureArea}>
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.title}>The Verdict</Text>
+              <Text style={styles.participants}>
+                {argument.personAName} vs {argument.personBName}
+              </Text>
+            </View>
 
-        {/* Winner Announcement */}
-        <View style={[styles.winnerCard, { borderColor: winnerColor }]}>
-          <Text style={styles.winnerEmoji}>🏆</Text>
-          <Text style={styles.winnerLabel}>Winner</Text>
-          <Text style={[styles.winnerName, { color: winnerColor }]}>
-            {argument.judgment.winnerName}
-          </Text>
-        </View>
+            {/* Winner Announcement */}
+            <View style={[styles.winnerCard, { borderColor: winnerColor }]}>
+              <Text style={styles.winnerEmoji}>🏆</Text>
+              <Text style={styles.winnerLabel}>Winner</Text>
+              <Text style={[styles.winnerName, { color: winnerColor }]}>
+                {argument.judgment.winnerName}
+              </Text>
+            </View>
 
-        {/* Audio Playback */}
+            {/* Reasoning */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Reasoning</Text>
+              <View style={styles.reasoningCard}>
+                <Text style={styles.reasoningText}>
+                  {argument.judgment.fullResponse || argument.judgment.reasoning}
+                </Text>
+              </View>
+            </View>
+
+            {/* Research Sources */}
+            {argument.judgment.researchPerformed && argument.judgment.sources && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Sources Consulted</Text>
+                {argument.judgment.sources.map((source, index) => (
+                  <Text key={index} style={styles.sourceText}>
+                    • {source}
+                  </Text>
+                ))}
+              </View>
+            )}
+
+            {/* Branding for screenshot */}
+            <View style={styles.branding}>
+              <Text style={styles.brandingText}>Settled with Settler</Text>
+            </View>
+          </View>
+        </ViewShot>
+
+        {/* Audio Playback - outside capture area */}
         {argument.judgment.audioUrl && (
           <TouchableOpacity style={styles.playButton} onPress={playAudio}>
             <Text style={styles.playButtonText}>
@@ -217,30 +288,12 @@ export default function JudgmentScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         )}
 
-        {/* Reasoning */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Reasoning</Text>
-          <View style={styles.reasoningCard}>
-            <Text style={styles.reasoningText}>
-              {argument.judgment.fullResponse || argument.judgment.reasoning}
-            </Text>
-          </View>
-        </View>
-
-        {/* Research Sources */}
-        {argument.judgment.researchPerformed && argument.judgment.sources && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Sources Consulted</Text>
-            {argument.judgment.sources.map((source, index) => (
-              <Text key={index} style={styles.sourceText}>
-                • {source}
-              </Text>
-            ))}
-          </View>
-        )}
-
         {/* Actions */}
         <View style={styles.actions}>
+          <TouchableOpacity style={styles.screenshotButton} onPress={handleScreenshot}>
+            <Text style={styles.shareButtonText}>📸</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
             <Text style={styles.shareButtonText}>📤 Share</Text>
           </TouchableOpacity>
@@ -373,5 +426,29 @@ const styles = StyleSheet.create({
   doneButtonText: {
     ...typography.bodyMedium,
     color: colors.textPrimary,
+  },
+  captureArea: {
+    backgroundColor: colors.bgPrimary,
+    padding: spacing.md,
+  },
+  branding: {
+    alignItems: 'center',
+    marginTop: spacing.lg,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  brandingText: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+  },
+  screenshotButton: {
+    backgroundColor: colors.bgTertiary,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 50,
   },
 });
