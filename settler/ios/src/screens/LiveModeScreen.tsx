@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as FileSystem from 'expo-file-system/legacy';
 import { colors, typography, spacing, borderRadius } from '../lib/theme';
 import { api } from '../lib/api';
 import { RootStackParamList } from '../navigation';
@@ -68,6 +69,7 @@ export default function LiveModeScreen({ navigation, route }: Props) {
 
   const stopAndJudge = async () => {
     setIsSubmitting(true);
+    setTranscript('Stopping recording...');
 
     try {
       // Stop timer
@@ -79,8 +81,24 @@ export default function LiveModeScreen({ navigation, route }: Props) {
       const uri = await stopAudioRecording();
       setIsRecording(false);
 
-      // TODO: Send audio to server for transcription with speaker diarization
-      // For now, create a placeholder
+      if (!uri) {
+        throw new Error('No recording URI');
+      }
+
+      // Transcribe the audio
+      setTranscript('Transcribing conversation...');
+      console.log('[LiveMode] Reading audio file:', uri);
+      const base64Audio = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      console.log('[LiveMode] Audio base64 length:', base64Audio.length);
+
+      console.log('[LiveMode] Sending to API for transcription...');
+      const transcriptionResult = await api.transcribeAudio(base64Audio);
+      const transcriptionText = transcriptionResult.transcription || '[Transcription failed]';
+      console.log('[LiveMode] Got transcription:', transcriptionText.substring(0, 100));
+
+      setTranscript('Creating judgment...');
 
       // Create argument on server
       const argument = await api.createArgument({
@@ -90,12 +108,11 @@ export default function LiveModeScreen({ navigation, route }: Props) {
         persona,
       });
 
-      // Add a single turn with the full conversation
-      // In production, this would be multiple turns after diarization
+      // Add a single turn with the transcribed conversation
       await api.addTurn(argument.id, {
         speaker: 'person_a',
-        transcription: `[Live conversation recorded - ${formatDuration(recordingDuration)} duration - transcription pending]`,
-        audioUrl: uri || undefined,
+        transcription: transcriptionText,
+        audioUrl: uri,
         durationSeconds: recordingDuration,
       });
 
@@ -105,6 +122,7 @@ export default function LiveModeScreen({ navigation, route }: Props) {
       console.error('Failed to submit:', error);
       Alert.alert('Error', 'Failed to submit for judgment');
       setIsSubmitting(false);
+      setTranscript('');
     }
   };
 

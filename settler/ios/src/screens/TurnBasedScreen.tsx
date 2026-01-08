@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { colors, typography, spacing, borderRadius } from '../lib/theme';
 import { useAppStore, Turn } from '../lib/store';
 import { api } from '../lib/api';
