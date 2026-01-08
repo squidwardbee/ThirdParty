@@ -6,6 +6,7 @@ import healthRouter from './routes/health';
 import usersRouter from './routes/users';
 import argumentsRouter from './routes/arguments';
 import webhooksRouter from './routes/webhooks';
+import transcribeRouter from './routes/transcribe';
 
 export function createApp(): Express {
   const app = express();
@@ -29,6 +30,7 @@ export function createApp(): Express {
   app.use('/api/users', usersRouter);
   app.use('/api/arguments', argumentsRouter);
   app.use('/api/webhooks', webhooksRouter);
+  app.use('/api/transcribe', transcribeRouter);
 
   // 404 handler
   app.use((req: Request, res: Response) => {
