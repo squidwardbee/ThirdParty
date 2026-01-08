@@ -19,6 +19,7 @@ import { colors, typography, spacing, borderRadius } from '../lib/theme';
 import { api } from '../lib/api';
 import { useAppStore } from '../lib/store';
 import { RootStackParamList } from '../navigation';
+import { FontAwesome5, Ionicons, Feather } from '@expo/vector-icons';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Judgment'>;
 
@@ -243,7 +244,7 @@ export default function JudgmentScreen({ navigation, route }: Props) {
 
             {/* Winner Announcement */}
             <View style={[styles.winnerCard, { borderColor: winnerColor }]}>
-              <Text style={styles.winnerEmoji}>🏆</Text>
+              <FontAwesome5 name="trophy" size={48} color={winnerColor} style={styles.winnerEmoji} />
               <Text style={styles.winnerLabel}>Winner</Text>
               <Text style={[styles.winnerName, { color: winnerColor }]}>
                 {argument.judgment.winnerName}
@@ -282,20 +283,30 @@ export default function JudgmentScreen({ navigation, route }: Props) {
         {/* Audio Playback - outside capture area */}
         {argument.judgment.audioUrl && (
           <TouchableOpacity style={styles.playButton} onPress={playAudio}>
-            <Text style={styles.playButtonText}>
-              {isPlaying ? '⏸️ Pause' : '▶️ Play Verdict'}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              {isPlaying ? (
+                <Ionicons name="pause" size={20} color={colors.textPrimary} />
+              ) : (
+                <Ionicons name="play" size={20} color={colors.textPrimary} />
+              )}
+              <Text style={styles.playButtonText}>
+                {isPlaying ? 'Pause' : 'Play Verdict'}
+              </Text>
+            </View>
           </TouchableOpacity>
         )}
 
         {/* Actions */}
         <View style={styles.actions}>
           <TouchableOpacity style={styles.screenshotButton} onPress={handleScreenshot}>
-            <Text style={styles.shareButtonText}>📸</Text>
+            <Feather name="camera" size={20} color={colors.textPrimary} />
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-            <Text style={styles.shareButtonText}>📤 Share</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Feather name="share" size={20} color={colors.textPrimary} />
+              <Text style={styles.shareButtonText}>Share</Text>
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.doneButton} onPress={handleDone}>

@@ -1,163 +1,105 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from 'react-native';
+import React from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius } from '../lib/theme';
-import { useAppStore, Persona } from '../lib/store';
+import { useArguments, Argument } from '../lib/store';
 import { RootStackParamList } from '../navigation';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Setup'>;
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const PERSONAS: { id: Persona; name: string; description: string; emoji: string }[] = [
-  {
-    id: 'mediator',
-    name: 'The Mediator',
-    description: 'Fair, diplomatic, and balanced. Considers both sides thoughtfully.',
-    emoji: '⚖️',
-  },
-  {
-    id: 'judge_judy',
-    name: 'Judge Judy',
-    description: 'Direct, no-nonsense, and brutally honest. Cuts through the BS.',
-    emoji: '👩‍⚖️',
-  },
-  {
-    id: 'comedic',
-    name: 'The Comedian',
-    description: 'Witty and humorous while still giving a real verdict.',
-    emoji: '🎭',
-  },
-];
+export default function HistoryScreen() {
+  const navigation = useNavigation<NavigationProp>();
+  const arguments_ = useArguments();
 
-export default function SetupScreen({ navigation, route }: Props) {
-  const { mode } = route.params;
-  const startNewArgument = useAppStore((state) => state.startNewArgument);
+  const renderArgument = ({ item }: { item: Argument }) => {
+    const winnerColor =
+      item.judgment?.winner === 'person_a'
+        ? colors.personA
+        : item.judgment?.winner === 'person_b'
+        ? colors.personB
+        : colors.textMuted;
 
-  const [personAName, setPersonAName] = useState('');
-  const [personBName, setPersonBName] = useState('');
-  const [selectedPersona, setSelectedPersona] = useState<Persona>('mediator');
+    return (
+      <TouchableOpacity
+        style={styles.argumentCard}
+        activeOpacity={0.8}
+        onPress={() => navigation.navigate('ArgumentDetail', { argumentId: item.id })}
+      >
+        <View style={styles.argumentHeader}>
+          <Text style={styles.argumentParticipants}>
+            {item.personAName} vs {item.personBName}
+          </Text>
+          <Text style={styles.argumentDate}>
+            {new Date(item.createdAt).toLocaleDateString()}
+          </Text>
+        </View>
 
-  const canProceed = personAName.trim().length > 0 && personBName.trim().length > 0;
+        {item.judgment ? (
+          <View style={styles.verdictRow}>
+            <View
+              style={[styles.winnerBadge, { backgroundColor: winnerColor + '20' }]}
+            >
+              <Text style={[styles.winnerText, { color: winnerColor }]}>
+                {item.judgment.winner === 'tie'
+                  ? 'Tie'
+                  : `${item.judgment.winnerName} wins`}
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <Text style={styles.pendingText}>
+            {item.status === 'processing' ? 'Judging...' : 'Incomplete'}
+          </Text>
+        )}
 
-  const handleStart = () => {
-    if (!canProceed) return;
-
-    startNewArgument(mode, personAName.trim(), personBName.trim(), selectedPersona);
-
-    if (mode === 'live') {
-      navigation.replace('LiveMode', {
-        personAName: personAName.trim(),
-        personBName: personBName.trim(),
-        persona: selectedPersona,
-      });
-    } else {
-      navigation.replace('TurnBased', {
-        personAName: personAName.trim(),
-        personBName: personBName.trim(),
-        persona: selectedPersona,
-      });
-    }
+        <View style={styles.modeRow}>
+          {item.mode === 'live' ? (
+            <Ionicons name="mic-outline" size={14} color={colors.textMuted} />
+          ) : (
+            <Ionicons name="repeat-outline" size={14} color={colors.textMuted} />
+          )}
+          <Text style={styles.argumentMode}>
+            {item.mode === 'live' ? ' Live' : ' Turn-based'} • {item.turns.length} turn
+            {item.turns.length !== 1 ? 's' : ''}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
   };
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <FontAwesome5
+        name="balance-scale"
+        size={64}
+        color={colors.textMuted}
+        style={styles.emptyIcon}
+      />
+      <Text style={styles.emptyTitle}>No arguments yet</Text>
+      <Text style={styles.emptyDescription}>
+        Start your first argument from the home screen
+      </Text>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.flex}
-      >
-        <ScrollView contentContainerStyle={styles.content}>
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Text style={styles.backButtonText}>← Back</Text>
-            </TouchableOpacity>
-            <Text style={styles.title}>
-              {mode === 'live' ? 'Live Conversation' : 'Turn-Based'}
-            </Text>
-            <Text style={styles.subtitle}>Enter the names of both participants</Text>
-          </View>
+      <View style={styles.header}>
+        <Text style={styles.title}>History</Text>
+      </View>
 
-          {/* Names */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Participants</Text>
-
-            <View style={styles.inputContainer}>
-              <View style={[styles.indicator, { backgroundColor: colors.personA }]} />
-              <TextInput
-                style={styles.input}
-                placeholder="Person 1's name"
-                placeholderTextColor={colors.textMuted}
-                value={personAName}
-                onChangeText={setPersonAName}
-                autoCapitalize="words"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <View style={[styles.indicator, { backgroundColor: colors.personB }]} />
-              <TextInput
-                style={styles.input}
-                placeholder="Person 2's name"
-                placeholderTextColor={colors.textMuted}
-                value={personBName}
-                onChangeText={setPersonBName}
-                autoCapitalize="words"
-              />
-            </View>
-          </View>
-
-          {/* Persona Selection */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Choose Your Judge</Text>
-
-            {PERSONAS.map((persona) => (
-              <TouchableOpacity
-                key={persona.id}
-                style={[
-                  styles.personaCard,
-                  selectedPersona === persona.id && styles.personaCardSelected,
-                ]}
-                onPress={() => setSelectedPersona(persona.id)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.personaEmoji}>{persona.emoji}</Text>
-                <View style={styles.personaContent}>
-                  <Text style={styles.personaName}>{persona.name}</Text>
-                  <Text style={styles.personaDescription}>{persona.description}</Text>
-                </View>
-                {selectedPersona === persona.id && (
-                  <View style={styles.checkmark}>
-                    <Text style={styles.checkmarkText}>✓</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Start Button */}
-          <TouchableOpacity
-            style={[styles.startButton, !canProceed && styles.startButtonDisabled]}
-            onPress={handleStart}
-            disabled={!canProceed}
-          >
-            <Text style={styles.startButtonText}>
-              {mode === 'live' ? 'Start Recording' : 'Begin Argument'}
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      <FlatList
+        data={arguments_}
+        keyExtractor={(item) => item.id}
+        renderItem={renderArgument}
+        ListEmptyComponent={renderEmptyState}
+        contentContainerStyle={
+          arguments_.length === 0 ? styles.emptyContainer : styles.listContainer
+        }
+      />
     </SafeAreaView>
   );
 }
@@ -167,117 +109,87 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bgPrimary,
   },
-  flex: {
-    flex: 1,
-  },
-  content: {
-    padding: spacing.lg,
-  },
   header: {
-    marginBottom: spacing.xl,
-  },
-  backButton: {
-    marginBottom: spacing.md,
-  },
-  backButtonText: {
-    ...typography.body,
-    color: colors.textSecondary,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
   },
   title: {
     ...typography.h1,
     color: colors.textPrimary,
-    marginBottom: spacing.xs,
   },
-  subtitle: {
-    ...typography.body,
-    color: colors.textSecondary,
+  listContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
   },
-  section: {
-    marginBottom: spacing.xl,
-  },
-  sectionTitle: {
-    ...typography.caption,
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: spacing.md,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.bgCard,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  indicator: {
-    width: 4,
-    height: 40,
-    borderTopLeftRadius: borderRadius.md,
-    borderBottomLeftRadius: borderRadius.md,
-    marginRight: spacing.md,
-  },
-  input: {
+  emptyContainer: {
     flex: 1,
-    ...typography.body,
-    color: colors.textPrimary,
-    padding: spacing.md,
-    paddingLeft: 0,
-  },
-  personaCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.bgCard,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
-  personaCardSelected: {
-    borderColor: colors.primary,
-  },
-  personaEmoji: {
-    fontSize: 32,
-    marginRight: spacing.md,
-  },
-  personaContent: {
-    flex: 1,
-  },
-  personaName: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
-  },
-  personaDescription: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
-  checkmark: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  checkmarkText: {
-    color: colors.textPrimary,
-    fontWeight: 'bold',
-  },
-  startButton: {
-    backgroundColor: colors.primary,
+  argumentCard: {
+    backgroundColor: colors.bgCard,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  argumentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: spacing.md,
+    marginBottom: spacing.sm,
   },
-  startButtonDisabled: {
-    opacity: 0.5,
-  },
-  startButtonText: {
+  argumentParticipants: {
     ...typography.bodyMedium,
     color: colors.textPrimary,
+  },
+  argumentDate: {
+    ...typography.small,
+    color: colors.textMuted,
+  },
+  verdictRow: {
+    marginBottom: spacing.sm,
+  },
+  winnerBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+  },
+  winnerText: {
+    ...typography.caption,
+    fontWeight: '600',
+  },
+  pendingText: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginBottom: spacing.sm,
+  },
+  modeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  argumentMode: {
+    ...typography.small,
+    color: colors.textMuted,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  emptyIcon: {
+    marginBottom: spacing.lg,
+  },
+  emptyTitle: {
+    ...typography.h3,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+  },
+  emptyDescription: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
 });

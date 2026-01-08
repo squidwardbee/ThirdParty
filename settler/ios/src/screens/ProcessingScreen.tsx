@@ -5,6 +5,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, typography, spacing } from '../lib/theme';
 import { api } from '../lib/api';
 import { RootStackParamList } from '../navigation';
+import { FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Processing'>;
 
@@ -52,7 +53,7 @@ export default function ProcessingScreen({ navigation, route }: Props) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.content}>
-          <Text style={styles.errorEmoji}>⚠️</Text>
+          <MaterialIcons name="warning" size={64} color={colors.error} style={styles.errorEmoji} />
           <Text style={styles.errorText}>{error}</Text>
         </View>
       </SafeAreaView>
@@ -63,8 +64,8 @@ export default function ProcessingScreen({ navigation, route }: Props) {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         {/* Animated Gavel */}
-        <View style={styles.iconContainer}>
-          <Text style={styles.icon}>⚖️</Text>
+       <View style={styles.iconContainer}>
+          <FontAwesome5 name="balance-scale" size={80} color={colors.textPrimary} />
         </View>
 
         {/* Loading Indicator */}

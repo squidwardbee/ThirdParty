@@ -7,6 +7,7 @@ import { useAppStore } from '../lib/store';
 import { colors } from '../lib/theme';
 import { onAuthChange } from '../lib/firebase';
 import { api } from '../lib/api';
+import { Ionicons } from '@expo/vector-icons';
 
 // Screens
 import AuthScreen from '../screens/AuthScreen';
@@ -49,8 +50,21 @@ const Tab = createBottomTabNavigator<TabParamList>();
 function MainTabs() {
   return (
     <Tab.Navigator
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerShown: false,
+        tabBarIcon: ({ color, size }) => {
+          let iconName: keyof typeof Ionicons.glyphMap = 'help-outline'; // default fallback
+
+          if (route.name === 'Home') {
+            iconName = 'home-outline';
+          } else if (route.name === 'History') {
+            iconName = 'time-outline';
+          } else if (route.name === 'Settings') {
+            iconName = 'settings-outline';
+          }
+
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
         tabBarStyle: {
           backgroundColor: colors.bgSecondary,
           borderTopColor: colors.border,
@@ -64,28 +78,22 @@ function MainTabs() {
         tabBarLabelStyle: {
           fontSize: 12,
         },
-      }}
+      })}
     >
       <Tab.Screen
         name="Home"
         component={HomeScreen}
-        options={{
-          tabBarLabel: 'Settle',
-        }}
+        options={{ tabBarLabel: 'Settle' }}
       />
       <Tab.Screen
         name="History"
         component={HistoryScreen}
-        options={{
-          tabBarLabel: 'History',
-        }}
+        options={{ tabBarLabel: 'History' }}
       />
       <Tab.Screen
         name="Settings"
         component={SettingsScreen}
-        options={{
-          tabBarLabel: 'Settings',
-        }}
+        options={{ tabBarLabel: 'Settings' }}
       />
     </Tab.Navigator>
   );

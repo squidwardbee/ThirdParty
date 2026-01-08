@@ -3,6 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius } from '../lib/theme';
 import { useArguments, Argument } from '../lib/store';
 import { RootStackParamList } from '../navigation';
@@ -54,17 +55,29 @@ export default function HistoryScreen() {
           </Text>
         )}
 
-        <Text style={styles.argumentMode}>
-          {item.mode === 'live' ? '🎙️ Live' : '🔄 Turn-based'} •{' '}
-          {item.turns.length} turn{item.turns.length !== 1 ? 's' : ''}
-        </Text>
+        <View style={styles.modeRow}>
+          {item.mode === 'live' ? (
+            <Ionicons name="mic-outline" size={14} color={colors.textMuted} />
+          ) : (
+            <Ionicons name="repeat-outline" size={14} color={colors.textMuted} />
+          )}
+          <Text style={styles.argumentMode}>
+            {item.mode === 'live' ? ' Live' : ' Turn-based'} • {item.turns.length} turn
+            {item.turns.length !== 1 ? 's' : ''}
+          </Text>
+        </View>
       </TouchableOpacity>
     );
   };
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Text style={styles.emptyIcon}>⚖️</Text>
+      <FontAwesome5
+        name="balance-scale"
+        size={64}
+        color={colors.textMuted}
+        style={styles.emptyIcon}
+      />
       <Text style={styles.emptyTitle}>No arguments yet</Text>
       <Text style={styles.emptyDescription}>
         Start your first argument from the home screen
@@ -154,6 +167,10 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginBottom: spacing.sm,
   },
+  modeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   argumentMode: {
     ...typography.small,
     color: colors.textMuted,
@@ -163,7 +180,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   emptyIcon: {
-    fontSize: 64,
     marginBottom: spacing.lg,
   },
   emptyTitle: {

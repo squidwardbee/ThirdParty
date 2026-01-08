@@ -13,6 +13,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { colors, typography, spacing, borderRadius } from '../lib/theme';
 import { api } from '../lib/api';
 import { RootStackParamList } from '../navigation';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { startRecording as startAudioRecording, stopRecording as stopAudioRecording, cleanupRecording, requestPermissions } from '../lib/audio';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LiveMode'>;
@@ -203,7 +204,7 @@ export default function LiveModeScreen({ navigation, route }: Props) {
           </View>
         </ScrollView>
 
-        {/* Controls */}
+       {/* Controls */}
         <View style={styles.controls}>
           {!isRecording ? (
             <TouchableOpacity
@@ -211,7 +212,10 @@ export default function LiveModeScreen({ navigation, route }: Props) {
               onPress={startRecording}
               disabled={isSubmitting}
             >
-              <Text style={styles.startButtonText}>🎙️ Start Recording</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="mic-outline" size={20} color={colors.textPrimary} style={{ marginRight: 8 }} />
+                <Text style={styles.startButtonText}>Start Recording</Text>
+              </View>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
@@ -219,8 +223,9 @@ export default function LiveModeScreen({ navigation, route }: Props) {
               onPress={stopAndJudge}
               disabled={isSubmitting}
             >
+              <FontAwesome5 name="balance-scale" size={18} color={colors.textInverse} />
               <Text style={styles.stopButtonText}>
-                {isSubmitting ? 'Submitting...' : '⚖️ End & Get Judgment'}
+                {isSubmitting ? ' Submitting...' : ' End & Get Judgment'}
               </Text>
             </TouchableOpacity>
           )}

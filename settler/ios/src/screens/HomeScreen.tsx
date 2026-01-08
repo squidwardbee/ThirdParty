@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, shadows } from '../lib/theme';
 import { useUser } from '../lib/store';
 import { RootStackParamList } from '../navigation';
@@ -40,7 +41,7 @@ export default function HomeScreen() {
             activeOpacity={0.8}
           >
             <View style={[styles.modeIcon, { backgroundColor: colors.personA + '20' }]}>
-              <Text style={styles.modeIconText}>🎙️</Text>
+              <Ionicons name="mic-outline" size={28} color={colors.personA} />
             </View>
             <Text style={styles.modeTitle}>Live Conversation</Text>
             <Text style={styles.modeDescription}>
@@ -54,7 +55,7 @@ export default function HomeScreen() {
             activeOpacity={0.8}
           >
             <View style={[styles.modeIcon, { backgroundColor: colors.personB + '20' }]}>
-              <Text style={styles.modeIconText}>🔄</Text>
+              <Feather name="repeat" size={28} color={colors.personB} />
             </View>
             <Text style={styles.modeTitle}>Turn-Based</Text>
             <Text style={styles.modeDescription}>
