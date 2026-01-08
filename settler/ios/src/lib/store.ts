@@ -197,12 +197,19 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'settler-storage',
+      version: 2,
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         user: state.user,
         token: state.token,
         isAuthenticated: state.isAuthenticated,
       }),
+      migrate: (persistedState: any, version) => {
+        if (persistedState && typeof persistedState.isAuthenticated !== 'boolean') {
+          persistedState.isAuthenticated = false;
+        }
+        return persistedState;
+      },
     }
   )
 );

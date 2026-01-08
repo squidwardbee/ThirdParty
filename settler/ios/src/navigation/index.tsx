@@ -126,7 +126,7 @@ export default function Navigation() {
             subscriptionExpiresAt: user.subscriptionExpiresAt,
             trialStartedAt: null,
             argumentsToday: user.argumentsToday,
-            preferredPersona: user.preferredPersona,
+            preferredPersona: user.preferredPersona as 'mediator' | 'judge_judy' | 'comedic',
           });
         } catch (error) {
           console.error('Failed to fetch user data:', error);
