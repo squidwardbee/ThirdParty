@@ -1,30 +1,57 @@
 {
   "expo": {
-    "name": "ios",
-    "slug": "ios",
+    "name": "Settler",
+    "slug": "settler",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1A1614"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "app.settler.ios",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Settler needs access to your microphone to record arguments for judging.",
+        "NSPhotoLibraryUsageDescription": "Settler needs access to your photos to save verdict screenshots.",
+        "NSPhotoLibraryAddUsageDescription": "Settler needs permission to save verdict screenshots to your photo library.",
+        "UIBackgroundModes": ["audio"]
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#1A1614"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "package": "app.settler.android",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_EXTERNAL_STORAGE"
+      ]
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    }
+    "plugins": [
+      "expo-av",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Settler to save verdict screenshots to your photos.",
+          "savePhotosPermission": "Allow Settler to save verdict screenshots to your photos."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID"
+      }
+    },
+    "owner": "your-expo-account"
   }
 }

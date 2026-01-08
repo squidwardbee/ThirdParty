@@ -455,14 +455,133 @@ api/src/services/
 
 ---
 
+---
+
+## Session 4 - Subscriptions & Usage Limits
+
+### Change 17: RevenueCat Integration
+**Files created:**
+- `ios/src/lib/purchases.ts` - RevenueCat client SDK wrapper
+- `ios/src/screens/PaywallScreen.tsx` - Subscription paywall UI
+- `api/src/routes/webhooks.ts` - RevenueCat webhook handler
+
+**Features:**
+- Initialize and configure RevenueCat
+- Purchase and restore subscriptions
+- Handle webhook events (purchase, renewal, expiration, cancellation)
+- Sync subscription status with database
+
+---
+
+### Change 18: Screenshot Capture
+**File modified:** `ios/src/screens/JudgmentScreen.tsx`
+
+**Dependencies added:**
+- `react-native-view-shot`
+- `expo-sharing`
+- `expo-media-library`
+
+**Features:**
+- Capture verdict card as image
+- Share via system share sheet
+- Save to photo library as fallback
+- Branding watermark on screenshots
+
+---
+
+### Change 19: Usage Limits Service
+**Files created:**
+- `api/src/services/usageLimits.ts` - Usage tracking and enforcement
+- `api/src/db/migrations/002_subscriptions.sql` - Subscription columns
+
+**Limits by tier:**
+| Tier | Arguments/Day | Turns/Argument | Research |
+|------|---------------|----------------|----------|
+| Free | 3 | 10 | No |
+| Trial | 10 | 20 | Yes |
+| Premium | Unlimited | Unlimited | Yes |
+
+---
+
+### Change 20: EAS Build Configuration
+**Files created:**
+- `ios/eas.json` - EAS Build profiles (dev, preview, production)
+- `ios/app.json` - Updated with iOS bundle ID, permissions, plugins
+
+---
+
+## Final Project Structure
+
+```
+settler/
+├── api/
+│   ├── src/
+│   │   ├── index.ts
+│   │   ├── app.ts
+│   │   ├── db/
+│   │   │   ├── index.ts
+│   │   │   ├── migrate.ts
+│   │   │   └── migrations/
+│   │   │       ├── 001_initial.sql
+│   │   │       └── 002_subscriptions.sql
+│   │   ├── middleware/
+│   │   │   └── auth.ts
+│   │   ├── routes/
+│   │   │   ├── health.ts
+│   │   │   ├── users.ts
+│   │   │   ├── arguments.ts
+│   │   │   └── webhooks.ts
+│   │   ├── services/
+│   │   │   ├── transcription.ts
+│   │   │   ├── research.ts
+│   │   │   ├── judgment.ts
+│   │   │   ├── tts.ts
+│   │   │   ├── storage.ts
+│   │   │   └── usageLimits.ts
+│   │   └── types/
+│   │       └── index.ts
+│   ├── .env.example
+│   ├── railway.json
+│   ├── Procfile
+│   └── package.json
+│
+└── ios/
+    ├── App.tsx
+    ├── src/
+    │   ├── lib/
+    │   │   ├── theme.ts
+    │   │   ├── store.ts
+    │   │   ├── api.ts
+    │   │   ├── firebase.ts
+    │   │   └── purchases.ts
+    │   ├── navigation/
+    │   │   └── index.tsx
+    │   └── screens/
+    │       ├── AuthScreen.tsx
+    │       ├── HomeScreen.tsx
+    │       ├── HistoryScreen.tsx
+    │       ├── SettingsScreen.tsx
+    │       ├── SetupScreen.tsx
+    │       ├── TurnBasedScreen.tsx
+    │       ├── LiveModeScreen.tsx
+    │       ├── ProcessingScreen.tsx
+    │       ├── JudgmentScreen.tsx
+    │       ├── ArgumentDetailScreen.tsx
+    │       └── PaywallScreen.tsx
+    ├── app.json
+    ├── eas.json
+    ├── .env.example
+    └── package.json
+```
+
+---
+
 ## Next Steps
-1. Set up RevenueCat subscriptions
-2. Build PaywallScreen with 3-day free trial
-3. Implement subscription webhook handler
-4. Add usage limits based on subscription tier
-5. Deploy to Railway
-6. Configure EAS Build for iOS
-7. Test full flow end-to-end
-8. Submit to App Store
+1. Deploy API to Railway
+2. Test full flow end-to-end
+3. Configure Firebase project
+4. Set up RevenueCat products in dashboard
+5. Create App Store Connect app listing
+6. Submit for App Store review
 
 ---

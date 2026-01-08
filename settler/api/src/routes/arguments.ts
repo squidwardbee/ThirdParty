@@ -17,6 +17,12 @@ import { generateJudgment, ArgumentTurn as JudgmentTurn } from '../services/judg
 import { generateJudgmentAudio } from '../services/tts';
 import { uploadAudio } from '../services/storage';
 import { transcribeFromBase64 } from '../services/transcription';
+import {
+  canCreateArgument,
+  canAddTurn,
+  incrementArgumentCount,
+  isResearchEnabled,
+} from '../services/usageLimits';
 
 const router = Router();
 
@@ -141,13 +147,24 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
     }
 
     // Get user
-    const user = await queryOne<{ id: string; arguments_today: number; last_argument_date: Date }>(
-      'SELECT id, arguments_today, last_argument_date FROM users WHERE firebase_uid = $1',
+    const user = await queryOne<{ id: string }>(
+      'SELECT id FROM users WHERE firebase_uid = $1',
       [req.user!.uid]
     );
 
     if (!user) {
       res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // Check usage limits
+    const usageCheck = await canCreateArgument(user.id);
+    if (!usageCheck.allowed) {
+      res.status(429).json({
+        error: usageCheck.reason,
+        code: 'LIMIT_EXCEEDED',
+        remaining: usageCheck.remaining,
+      });
       return;
     }
 
@@ -161,25 +178,13 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
     );
 
     // Update user's daily count
-    const today = new Date().toISOString().split('T')[0];
-    const lastDate = user.last_argument_date?.toISOString().split('T')[0];
-
-    if (lastDate === today) {
-      await query(
-        'UPDATE users SET arguments_today = arguments_today + 1 WHERE id = $1',
-        [user.id]
-      );
-    } else {
-      await query(
-        'UPDATE users SET arguments_today = 1, last_argument_date = $1 WHERE id = $2',
-        [today, user.id]
-      );
-    }
+    await incrementArgumentCount(user.id);
 
     res.status(201).json({
       ...rowToArgument(rows[0]),
       turns: [],
       judgment: null,
+      remainingToday: usageCheck.remaining,
     });
   } catch (error) {
     console.error('Error creating argument:', error);
@@ -322,6 +327,16 @@ router.post('/:id/turns', async (req: AuthenticatedRequest, res: Response) => {
 
     if (!argument) {
       res.status(404).json({ error: 'Argument not found' });
+      return;
+    }
+
+    // Check turn limits
+    const turnCheck = await canAddTurn(user.id, id);
+    if (!turnCheck.allowed) {
+      res.status(429).json({
+        error: turnCheck.reason,
+        code: 'TURN_LIMIT_EXCEEDED',
+      });
       return;
     }
 
