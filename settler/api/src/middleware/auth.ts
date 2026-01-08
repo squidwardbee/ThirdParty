@@ -1,7 +1,25 @@
 import { Request, Response, NextFunction } from 'express';
+import admin from 'firebase-admin';
 
-// Placeholder for Firebase Admin - will be implemented when Firebase is set up
-// import admin from 'firebase-admin';
+// Initialize Firebase Admin if not already initialized
+if (!admin.apps.length) {
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+
+  if (projectId && clientEmail && privateKey) {
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId,
+        clientEmail,
+        privateKey,
+      }),
+    });
+    console.log('Firebase Admin initialized');
+  } else {
+    console.warn('Firebase Admin credentials not configured - auth will use dev mode');
+  }
+}
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -12,7 +30,6 @@ export interface AuthenticatedRequest extends Request {
 
 /**
  * Middleware to verify Firebase JWT tokens
- * Currently a placeholder - will verify tokens when Firebase Admin is configured
  */
 export async function authMiddleware(
   req: AuthenticatedRequest,
@@ -29,15 +46,7 @@ export async function authMiddleware(
   const token = authHeader.split('Bearer ')[1];
 
   try {
-    // TODO: Replace with actual Firebase verification
-    // const decodedToken = await admin.auth().verifyIdToken(token);
-    // req.user = {
-    //   uid: decodedToken.uid,
-    //   email: decodedToken.email || '',
-    // };
-
-    // Placeholder: Accept any token for development
-    // In production, this MUST verify the Firebase token
+    // Development mode - accept dev token
     if (process.env.NODE_ENV === 'development' && token === 'dev-token') {
       req.user = {
         uid: 'dev-user-123',
@@ -47,7 +56,18 @@ export async function authMiddleware(
       return;
     }
 
-    res.status(401).json({ error: 'Invalid token - Firebase not configured' });
+    // Production mode - verify with Firebase
+    if (!admin.apps.length) {
+      res.status(500).json({ error: 'Firebase Admin not configured' });
+      return;
+    }
+
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    req.user = {
+      uid: decodedToken.uid,
+      email: decodedToken.email || '',
+    };
+    next();
   } catch (error) {
     console.error('Auth error:', error);
     res.status(401).json({ error: 'Invalid token' });
@@ -69,12 +89,24 @@ export async function optionalAuthMiddleware(
     return;
   }
 
-  // Try to authenticate, but don't fail if it doesn't work
   try {
-    await authMiddleware(req, res, () => {
-      next();
-    });
+    const token = authHeader.split('Bearer ')[1];
+
+    if (process.env.NODE_ENV === 'development' && token === 'dev-token') {
+      req.user = {
+        uid: 'dev-user-123',
+        email: 'dev@example.com',
+      };
+    } else if (admin.apps.length) {
+      const decodedToken = await admin.auth().verifyIdToken(token);
+      req.user = {
+        uid: decodedToken.uid,
+        email: decodedToken.email || '',
+      };
+    }
   } catch {
-    next();
+    // Ignore auth errors for optional auth
   }
+
+  next();
 }

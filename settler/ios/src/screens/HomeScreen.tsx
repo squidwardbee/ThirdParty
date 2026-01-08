@@ -1,20 +1,24 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, typography, spacing, borderRadius, shadows } from '../lib/theme';
 import { useUser } from '../lib/store';
+import { RootStackParamList } from '../navigation';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function HomeScreen() {
+  const navigation = useNavigation<NavigationProp>();
   const user = useUser();
 
   const handleLiveMode = () => {
-    // TODO: Navigate to Setup screen with mode: 'live'
-    console.log('Start Live Mode');
+    navigation.navigate('Setup', { mode: 'live' });
   };
 
   const handleTurnBased = () => {
-    // TODO: Navigate to Setup screen with mode: 'turn_based'
-    console.log('Start Turn-Based Mode');
+    navigation.navigate('Setup', { mode: 'turn_based' });
   };
 
   return (

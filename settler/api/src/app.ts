@@ -4,6 +4,8 @@ import cors from 'cors';
 // Import routes
 import healthRouter from './routes/health';
 import usersRouter from './routes/users';
+import argumentsRouter from './routes/arguments';
+import webhooksRouter from './routes/webhooks';
 
 export function createApp(): Express {
   const app = express();
@@ -25,13 +27,8 @@ export function createApp(): Express {
 
   // API routes
   app.use('/api/users', usersRouter);
-
-  // TODO: Add more routes as they are implemented
-  // app.use('/api/arguments', argumentsRouter);
-  // app.use('/api/transcribe', transcribeRouter);
-  // app.use('/api/judge', judgeRouter);
-  // app.use('/api/config', configRouter);
-  // app.use('/api/webhooks', webhooksRouter);
+  app.use('/api/arguments', argumentsRouter);
+  app.use('/api/webhooks', webhooksRouter);
 
   // 404 handler
   app.use((req: Request, res: Response) => {

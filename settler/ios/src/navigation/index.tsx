@@ -11,6 +11,13 @@ import AuthScreen from '../screens/AuthScreen';
 import HomeScreen from '../screens/HomeScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import SetupScreen from '../screens/SetupScreen';
+import TurnBasedScreen from '../screens/TurnBasedScreen';
+import LiveModeScreen from '../screens/LiveModeScreen';
+import ProcessingScreen from '../screens/ProcessingScreen';
+import JudgmentScreen from '../screens/JudgmentScreen';
+import ArgumentDetailScreen from '../screens/ArgumentDetailScreen';
+import PaywallScreen from '../screens/PaywallScreen';
 
 // Type definitions for navigation
 export type RootStackParamList = {
@@ -46,9 +53,15 @@ function MainTabs() {
           backgroundColor: colors.bgSecondary,
           borderTopColor: colors.border,
           borderTopWidth: 1,
+          paddingBottom: 5,
+          paddingTop: 5,
+          height: 60,
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
+        tabBarLabelStyle: {
+          fontSize: 12,
+        },
       }}
     >
       <Tab.Screen
@@ -56,7 +69,6 @@ function MainTabs() {
         component={HomeScreen}
         options={{
           tabBarLabel: 'Settle',
-          // TODO: Add icons
         }}
       />
       <Tab.Screen
@@ -97,7 +109,6 @@ export default function Navigation() {
 
   useEffect(() => {
     // TODO: Check auth state with Firebase
-    // For now, just simulate a loading state
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 500);
@@ -115,16 +126,14 @@ export default function Navigation() {
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: colors.bgPrimary },
+          animation: 'slide_from_right',
         }}
       >
         {!isAuthenticated ? (
-          // Auth stack
           <Stack.Screen name="Auth" component={AuthScreen} />
         ) : (
-          // Main app stack
           <>
             <Stack.Screen name="MainTabs" component={MainTabs} />
-            {/* TODO: Add modal screens
             <Stack.Screen
               name="Setup"
               component={SetupScreen}
@@ -132,7 +141,11 @@ export default function Navigation() {
             />
             <Stack.Screen name="LiveMode" component={LiveModeScreen} />
             <Stack.Screen name="TurnBased" component={TurnBasedScreen} />
-            <Stack.Screen name="Processing" component={ProcessingScreen} />
+            <Stack.Screen
+              name="Processing"
+              component={ProcessingScreen}
+              options={{ gestureEnabled: false }}
+            />
             <Stack.Screen
               name="Judgment"
               component={JudgmentScreen}
@@ -147,7 +160,6 @@ export default function Navigation() {
               component={PaywallScreen}
               options={{ presentation: 'modal' }}
             />
-            */}
           </>
         )}
       </Stack.Navigator>

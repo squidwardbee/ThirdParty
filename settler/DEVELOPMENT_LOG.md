@@ -263,7 +263,7 @@ settler/
 
 ---
 
-## Completed in This Session
+## Completed in Session 1 (Initial Scaffold)
 
 1. **Project Structure** - Created settler/api and settler/ios directories
 2. **Expo App** - Initialized with TypeScript, installed navigation & state deps
@@ -278,14 +278,191 @@ settler/
 
 ---
 
+## Session 2 - Core Features Implementation
+
+### Change 10: Firebase Authentication
+**Files created/modified:**
+- `ios/src/lib/firebase.ts` - Firebase client SDK integration
+- `api/src/middleware/auth.ts` - Firebase Admin JWT verification
+
+**Features:**
+- Sign in/up with email and password
+- Get ID token for API authentication
+- Auth state change listener
+- Dev mode for local development
+
+---
+
+### Change 11: Argument Routes
+**File created:** `api/src/routes/arguments.ts`
+
+**Endpoints:**
+- `GET /api/arguments` - List user's arguments
+- `POST /api/arguments` - Create new argument
+- `GET /api/arguments/:id` - Get single argument with details
+- `DELETE /api/arguments/:id` - Delete argument
+- `POST /api/arguments/:id/turns` - Add a turn
+- `POST /api/arguments/:id/judge` - Request AI judgment
+
+---
+
+### Change 12: All Frontend Screens
+**Files created:**
+- `ios/src/screens/SetupScreen.tsx` - Enter names, select AI persona
+- `ios/src/screens/TurnBasedScreen.tsx` - Take turns recording arguments
+- `ios/src/screens/LiveModeScreen.tsx` - Continuous conversation recording
+- `ios/src/screens/ProcessingScreen.tsx` - Loading state while AI judges
+- `ios/src/screens/JudgmentScreen.tsx` - Display verdict with audio playback
+- `ios/src/screens/ArgumentDetailScreen.tsx` - View past argument details
+
+**Features:**
+- Audio recording with expo-av
+- Live transcript display
+- Speaker switching (turn-based mode)
+- Share functionality
+- Delete confirmation
+
+---
+
+### Change 13: Navigation Updates
+**File modified:** `ios/src/navigation/index.tsx`
+
+**Added routes:**
+- Setup (modal presentation)
+- LiveMode
+- TurnBased
+- Processing (gesture disabled)
+- Judgment (modal)
+- ArgumentDetail
+
+---
+
+### Change 14: Railway Configuration
+**Files created:**
+- `api/railway.json` - Railway deployment config
+- `api/Procfile` - Process file for hosting
+
+---
+
+## Current File Structure
+
+### Backend (api/)
+```
+api/
+├── src/
+│   ├── index.ts
+│   ├── app.ts
+│   ├── db/
+│   │   ├── index.ts
+│   │   ├── migrate.ts
+│   │   └── migrations/
+│   │       └── 001_initial.sql
+│   ├── middleware/
+│   │   └── auth.ts              # Firebase Admin auth
+│   ├── routes/
+│   │   ├── health.ts
+│   │   ├── users.ts
+│   │   └── arguments.ts         # NEW: Full CRUD
+│   └── types/
+│       └── index.ts
+├── railway.json                  # NEW: Railway config
+├── Procfile                      # NEW: Process file
+├── .env.example
+├── package.json
+└── tsconfig.json
+```
+
+### Frontend (ios/)
+```
+ios/
+├── App.tsx
+├── src/
+│   ├── lib/
+│   │   ├── theme.ts
+│   │   ├── store.ts
+│   │   ├── api.ts
+│   │   └── firebase.ts          # NEW: Firebase auth
+│   ├── navigation/
+│   │   └── index.tsx            # Updated with all routes
+│   └── screens/
+│       ├── AuthScreen.tsx
+│       ├── HomeScreen.tsx       # Updated with navigation
+│       ├── HistoryScreen.tsx    # Updated with navigation
+│       ├── SettingsScreen.tsx
+│       ├── SetupScreen.tsx      # NEW
+│       ├── TurnBasedScreen.tsx  # NEW
+│       ├── LiveModeScreen.tsx   # NEW
+│       ├── ProcessingScreen.tsx # NEW
+│       ├── JudgmentScreen.tsx   # NEW
+│       └── ArgumentDetailScreen.tsx # NEW
+├── .env.example
+└── package.json
+```
+
+---
+
+## Session 3 - AI Services Implementation
+
+### Change 15: Backend Services Directory
+**Files created:**
+- `api/src/services/transcription.ts` - Whisper STT integration
+- `api/src/services/research.ts` - Tavily web search integration
+- `api/src/services/tts.ts` - ElevenLabs TTS integration
+- `api/src/services/storage.ts` - AWS S3 audio storage
+- `api/src/services/judgment.ts` - GPT-4 agentic judgment with tool calling
+
+**Features:**
+- Whisper transcription from buffer, URL, or base64
+- Web search for fact-checking claims during judgment
+- Multi-persona TTS voices (mediator, judge, comedic)
+- S3 audio upload with signed URLs
+- GPT-4 agent with tool calling for research
+
+---
+
+### Change 16: Arguments Routes Integration
+**File modified:** `api/src/routes/arguments.ts`
+
+**Updates:**
+- `/api/arguments/:id/turns` now accepts base64 audio for server-side transcription
+- `/api/arguments/transcribe` endpoint for live preview transcription
+- `/api/arguments/:id/judge` now calls real AI services:
+  - Generates judgment using GPT-4 with optional web research
+  - Creates audio of verdict using ElevenLabs
+  - Uploads audio to S3
+  - Stores research sources in database
+
+---
+
+### New Dependencies Installed
+```bash
+npm install openai @aws-sdk/client-s3 @aws-sdk/lib-storage @aws-sdk/s3-request-presigner
+npm install @tavily/core @elevenlabs/elevenlabs-js
+```
+
+---
+
+## Current Service Architecture
+
+```
+api/src/services/
+├── transcription.ts  # Whisper STT (OpenAI)
+├── research.ts       # Web search (Tavily)
+├── judgment.ts       # AI judgment (GPT-4 with tools)
+├── tts.ts           # Text-to-speech (ElevenLabs)
+└── storage.ts       # Audio storage (AWS S3)
+```
+
+---
+
 ## Next Steps
-1. Implement Firebase authentication (client + server)
-2. Create argument routes (/api/arguments)
-3. Build SetupScreen (names + persona selection)
-4. Build TurnBasedScreen with recording
-5. Build LiveModeScreen with continuous recording
-6. Implement Whisper transcription service
-7. Build AI judgment agent with GPT-4
-8. Implement ElevenLabs TTS
+1. Set up RevenueCat subscriptions
+2. Build PaywallScreen with 3-day free trial
+3. Implement subscription webhook handler
+4. Add usage limits based on subscription tier
+5. Deploy to Railway
+6. Configure EAS Build for iOS
+7. Test full flow end-to-end
+8. Submit to App Store
 
 ---

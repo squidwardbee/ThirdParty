@@ -1,10 +1,16 @@
 import React from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, typography, spacing, borderRadius } from '../lib/theme';
 import { useArguments, Argument } from '../lib/store';
+import { RootStackParamList } from '../navigation';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function HistoryScreen() {
+  const navigation = useNavigation<NavigationProp>();
   const arguments_ = useArguments();
 
   const renderArgument = ({ item }: { item: Argument }) => {
@@ -19,10 +25,7 @@ export default function HistoryScreen() {
       <TouchableOpacity
         style={styles.argumentCard}
         activeOpacity={0.8}
-        onPress={() => {
-          // TODO: Navigate to ArgumentDetail
-          console.log('View argument:', item.id);
-        }}
+        onPress={() => navigation.navigate('ArgumentDetail', { argumentId: item.id })}
       >
         <View style={styles.argumentHeader}>
           <Text style={styles.argumentParticipants}>
