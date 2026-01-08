@@ -5,6 +5,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAppStore } from '../lib/store';
 import { colors } from '../lib/theme';
+import { onAuthChange } from '../lib/firebase';
+import { api } from '../lib/api';
 
 // Screens
 import AuthScreen from '../screens/AuthScreen';
@@ -106,14 +108,37 @@ function LoadingScreen() {
 export default function Navigation() {
   const [isLoading, setIsLoading] = useState(true);
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
+  const setUser = useAppStore((state) => state.setUser);
+  const logout = useAppStore((state) => state.logout);
 
   useEffect(() => {
-    // TODO: Check auth state with Firebase
-    const timer = setTimeout(() => {
+    // Listen to Firebase auth state changes
+    const unsubscribe = onAuthChange(async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          // User is signed in - fetch user data from API
+          const user = await api.createOrUpdateUser();
+          setUser({
+            id: user.id,
+            email: user.email,
+            displayName: user.displayName,
+            subscriptionTier: user.subscriptionTier,
+            subscriptionExpiresAt: user.subscriptionExpiresAt,
+            trialStartedAt: null,
+            argumentsToday: user.argumentsToday,
+            preferredPersona: user.preferredPersona,
+          });
+        } catch (error) {
+          console.error('Failed to fetch user data:', error);
+        }
+      } else {
+        // User is signed out
+        logout();
+      }
       setIsLoading(false);
-    }, 500);
+    });
 
-    return () => clearTimeout(timer);
+    return () => unsubscribe();
   }, []);
 
   if (isLoading) {

@@ -6,13 +6,18 @@ import {
   StyleSheet,
   Alert,
   ScrollView,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, typography, spacing, borderRadius } from '../lib/theme';
 import { useAppStore, useUser, useIsPremium } from '../lib/store';
 import { api } from '../lib/api';
+import { signOut } from '../lib/firebase';
+import { getManagementUrl } from '../lib/purchases';
+import { RootStackParamList } from '../navigation';
 
-export default function SettingsScreen() {
+export default function SettingsScreen({ navigation }: any) {
   const user = useUser();
   const isPremium = useIsPremium();
   const logout = useAppStore((state) => state.logout);
@@ -23,9 +28,14 @@ export default function SettingsScreen() {
       {
         text: 'Sign Out',
         style: 'destructive',
-        onPress: () => {
-          // TODO: Sign out from Firebase
-          logout();
+        onPress: async () => {
+          try {
+            await signOut();
+            logout();
+          } catch (error) {
+            console.error('Sign out error:', error);
+            logout(); // Still logout locally even if Firebase fails
+          }
         },
       },
     ]);
@@ -52,7 +62,7 @@ export default function SettingsScreen() {
                   onPress: async () => {
                     try {
                       await api.deleteAccount();
-                      // TODO: Sign out from Firebase
+                      await signOut();
                       logout();
                     } catch (error) {
                       Alert.alert('Error', 'Failed to delete account');
@@ -68,13 +78,11 @@ export default function SettingsScreen() {
   };
 
   const handleUpgrade = () => {
-    // TODO: Navigate to Paywall
-    console.log('Navigate to paywall');
+    navigation.navigate('Paywall');
   };
 
   const handleManageSubscription = () => {
-    // TODO: Open App Store subscription management
-    console.log('Open subscription management');
+    Linking.openURL(getManagementUrl());
   };
 
   return (

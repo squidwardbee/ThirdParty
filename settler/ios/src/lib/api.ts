@@ -1,4 +1,5 @@
 import { useAppStore } from './store';
+import { getIdToken } from './firebase';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -7,9 +8,9 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001';
  */
 class ApiClient {
   private async getToken(): Promise<string | null> {
-    // TODO: Get Firebase token when auth is implemented
-    // const firebaseToken = await getIdToken();
-    // if (firebaseToken) return firebaseToken;
+    // Get Firebase ID token for authentication
+    const firebaseToken = await getIdToken();
+    if (firebaseToken) return firebaseToken;
     return useAppStore.getState().token;
   }
 

@@ -12,6 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, typography, spacing, borderRadius } from '../lib/theme';
 import { useAppStore } from '../lib/store';
+import { signIn, signUp } from '../lib/firebase';
+import { api } from '../lib/api';
 
 export default function AuthScreen() {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -21,7 +23,6 @@ export default function AuthScreen() {
   const [isLoading, setIsLoading] = useState(false);
 
   const setUser = useAppStore((state) => state.setUser);
-  const setToken = useAppStore((state) => state.setToken);
 
   const handleSubmit = async () => {
     // Validation
@@ -38,25 +39,41 @@ export default function AuthScreen() {
     setIsLoading(true);
 
     try {
-      // TODO: Implement Firebase authentication
-      // For now, simulate a successful login
-      console.log('Auth:', isSignUp ? 'Sign Up' : 'Sign In', email);
+      // Firebase authentication
+      if (isSignUp) {
+        await signUp(email, password);
+      } else {
+        await signIn(email, password);
+      }
 
-      // Temporary: Set a mock user for development
+      // Create or get user from our API
+      const user = await api.createOrUpdateUser();
+
       setUser({
-        id: 'dev-user-123',
-        email: email,
-        displayName: null,
-        subscriptionTier: 'free',
-        subscriptionExpiresAt: null,
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        subscriptionTier: user.subscriptionTier,
+        subscriptionExpiresAt: user.subscriptionExpiresAt,
         trialStartedAt: null,
-        argumentsToday: 0,
-        preferredPersona: 'mediator',
+        argumentsToday: user.argumentsToday,
+        preferredPersona: user.preferredPersona,
       });
-      setToken('dev-token');
-    } catch (error) {
-      Alert.alert('Error', 'Authentication failed. Please try again.');
+    } catch (error: any) {
       console.error('Auth error:', error);
+      let message = 'Authentication failed. Please try again.';
+      if (error.code === 'auth/email-already-in-use') {
+        message = 'This email is already registered. Try signing in.';
+      } else if (error.code === 'auth/invalid-email') {
+        message = 'Invalid email address.';
+      } else if (error.code === 'auth/weak-password') {
+        message = 'Password should be at least 6 characters.';
+      } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        message = 'Invalid email or password.';
+      } else if (error.message) {
+        message = error.message;
+      }
+      Alert.alert('Error', message);
     } finally {
       setIsLoading(false);
     }
