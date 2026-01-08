@@ -9,11 +9,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Audio } from 'expo-av';
 import { colors, typography, spacing, borderRadius } from '../lib/theme';
 import { api } from '../lib/api';
 import { RootStackParamList } from '../navigation';
-import { startRecording as startAudioRecording, stopRecording as stopAudioRecording, cleanupRecording } from '../lib/audio';
+import { startRecording as startAudioRecording, stopRecording as stopAudioRecording, cleanupRecording, requestPermissions } from '../lib/audio';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LiveMode'>;
 
@@ -44,7 +43,7 @@ export default function LiveModeScreen({ navigation, route }: Props) {
 
   const startRecording = async () => {
     try {
-      const { granted } = await Audio.requestPermissionsAsync();
+      const granted = await requestPermissions();
       if (!granted) {
         Alert.alert('Permission Required', 'Microphone access is needed to record.');
         return;

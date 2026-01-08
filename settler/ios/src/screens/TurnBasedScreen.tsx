@@ -9,12 +9,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system';
 import { colors, typography, spacing, borderRadius } from '../lib/theme';
 import { useAppStore, Turn } from '../lib/store';
 import { api } from '../lib/api';
 import { RootStackParamList } from '../navigation';
-import { startRecording as startAudioRecording, stopRecording as stopAudioRecording, cleanupRecording } from '../lib/audio';
+import { startRecording as startAudioRecording, stopRecording as stopAudioRecording, cleanupRecording, requestPermissions } from '../lib/audio';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TurnBased'>;
 
@@ -40,7 +40,7 @@ export default function TurnBasedScreen({ navigation, route }: Props) {
   const startRecording = async () => {
     try {
       // Request permissions first
-      const { granted } = await Audio.requestPermissionsAsync();
+      const granted = await requestPermissions();
       if (!granted) {
         Alert.alert('Permission Required', 'Microphone access is needed to record arguments.');
         return;
@@ -58,11 +58,26 @@ export default function TurnBasedScreen({ navigation, route }: Props) {
   const stopRecording = async () => {
     try {
       setIsRecording(false);
+      setCurrentTranscript('Transcribing...');
+
       const uri = await stopAudioRecording();
 
-      // TODO: Send audio to Whisper for transcription
-      // For now, use placeholder text
-      const transcript = `[${currentSpeakerName}'s argument recorded - transcription pending]`;
+      if (!uri) {
+        throw new Error('No recording URI');
+      }
+
+      // Read audio file and convert to base64
+      console.log('[Transcribe] Reading audio file:', uri);
+      const base64Audio = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      console.log('[Transcribe] Audio base64 length:', base64Audio.length);
+
+      // Send to API for transcription
+      console.log('[Transcribe] Sending to API...');
+      const result = await api.transcribeAudio(base64Audio);
+      const transcript = result.transcription || `[${currentSpeakerName}'s argument - transcription failed]`;
+      console.log('[Transcribe] Got transcription:', transcript.substring(0, 100));
 
       // Add turn
       const newTurn: Turn = {
@@ -70,7 +85,7 @@ export default function TurnBasedScreen({ navigation, route }: Props) {
         speaker: currentSpeaker,
         speakerName: currentSpeakerName,
         transcription: transcript,
-        audioUri: uri || undefined,
+        audioUri: uri,
       };
 
       setTurns((prev) => [...prev, newTurn]);
@@ -80,7 +95,8 @@ export default function TurnBasedScreen({ navigation, route }: Props) {
       setCurrentSpeaker((prev) => (prev === 'person_a' ? 'person_b' : 'person_a'));
     } catch (error) {
       console.error('Failed to stop recording:', error);
-      Alert.alert('Error', 'Failed to stop recording');
+      Alert.alert('Error', 'Failed to transcribe recording. Please try again.');
+      setCurrentTranscript('');
     }
   };
 

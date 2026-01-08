@@ -45,7 +45,12 @@
       ]
     },
     "plugins": [
-      "expo-av",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Settler needs access to your microphone to record arguments for judging."
+        }
+      ],
       [
         "expo-media-library",
         {
