@@ -1,6 +1,5 @@
 import OpenAI from 'openai';
-import { ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/chat';
-import { searchWeb, ResearchResult } from './research';
+import { ChatCompletionMessageParam } from 'openai/resources/chat';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -47,30 +46,8 @@ Poke fun at both parties equally, make pop culture references, and keep it light
 Your judgment should be entertaining while still being fair and reasoned.`,
 };
 
-// Tools for the AI agent
-const tools: ChatCompletionTool[] = [
-  {
-    type: 'function',
-    function: {
-      name: 'search_web',
-      description:
-        'Search the web to fact-check claims, verify statistics, or research topics mentioned in the argument. Use this when someone makes a factual claim that can be verified.',
-      parameters: {
-        type: 'object',
-        properties: {
-          query: {
-            type: 'string',
-            description: 'The search query to look up',
-          },
-        },
-        required: ['query'],
-      },
-    },
-  },
-];
-
 /**
- * Generate a judgment for an argument using GPT-4 with tool calling
+ * Generate a judgment for an argument using GPT-4
  */
 export async function generateJudgment(
   request: JudgmentRequest
@@ -88,106 +65,33 @@ You are settling an argument between ${personAName} and ${personBName}.
 
 IMPORTANT RULES:
 1. You MUST declare a winner (or a tie if truly equal). Never refuse to judge.
-2. If someone makes factual claims that can be verified, use the search_web tool to research them.
-3. Base your judgment on:
+2. Base your judgment on:
    - Logic and reasoning quality
-   - Factual accuracy (verified when possible)
    - How well they addressed the other person's points
    - Overall persuasiveness
-4. Provide clear reasoning for your decision.
-5. At the end of your response, include a clear verdict line in this format:
+3. Provide clear reasoning for your decision.
+4. At the end of your response, include a clear verdict line in this format:
    VERDICT: [WINNER_NAME] (or VERDICT: TIE)`;
 
   const userMessage = `Here is the argument transcript:
 
 ${transcript}
 
-Please analyze this argument and render your judgment. If any factual claims are made, consider researching them to verify accuracy. Then provide your verdict with clear reasoning.`;
+Please analyze this argument and render your judgment with clear reasoning.`;
 
   const messages: ChatCompletionMessageParam[] = [
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userMessage },
   ];
 
-  let researchPerformed = false;
-  const sources: string[] = [];
-  let fullResponse = '';
-
-  // Initial completion with tools
-  let response = await openai.chat.completions.create({
+  const response = await openai.chat.completions.create({
     model: 'gpt-4-turbo-preview',
     messages,
-    tools,
-    tool_choice: 'auto',
     temperature: 0.7,
     max_tokens: 2000,
   });
 
-  let choice = response.choices[0];
-
-  // Handle tool calls (research loop)
-  while (choice.finish_reason === 'tool_calls' && choice.message.tool_calls) {
-    const toolCalls = choice.message.tool_calls;
-
-    // Add assistant message with tool calls
-    messages.push(choice.message);
-
-    // Process each tool call
-    for (const toolCall of toolCalls) {
-      // Type guard for function tool calls
-      if (toolCall.type !== 'function') continue;
-
-      if (toolCall.function.name === 'search_web') {
-        researchPerformed = true;
-        const args = JSON.parse(toolCall.function.arguments);
-
-        try {
-          const searchResult: ResearchResult = await searchWeb(args.query, {
-            maxResults: 3,
-            includeAnswer: true,
-          });
-
-          // Add sources
-          for (const result of searchResult.results) {
-            if (!sources.includes(result.url)) {
-              sources.push(result.url);
-            }
-          }
-
-          // Format results for the AI
-          const resultText = formatSearchResults(searchResult);
-
-          messages.push({
-            role: 'tool',
-            tool_call_id: toolCall.id,
-            content: resultText,
-          });
-        } catch (error) {
-          console.error('Search failed:', error);
-          messages.push({
-            role: 'tool',
-            tool_call_id: toolCall.id,
-            content: 'Search failed. Please proceed without this information.',
-          });
-        }
-      }
-    }
-
-    // Continue the conversation
-    response = await openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
-      messages,
-      tools,
-      tool_choice: 'auto',
-      temperature: 0.7,
-      max_tokens: 2000,
-    });
-
-    choice = response.choices[0];
-  }
-
-  // Get the final response
-  fullResponse = choice.message.content || '';
+  const fullResponse = response.choices[0].message.content || '';
 
   // Parse the verdict
   const { winner, winnerName, reasoning } = parseVerdict(
@@ -201,27 +105,9 @@ Please analyze this argument and render your judgment. If any factual claims are
     winnerName,
     reasoning,
     fullResponse,
-    researchPerformed,
-    sources,
+    researchPerformed: false,
+    sources: [],
   };
-}
-
-/**
- * Format search results for the AI
- */
-function formatSearchResults(result: ResearchResult): string {
-  let text = `Search results for: "${result.query}"\n\n`;
-
-  if (result.answer) {
-    text += `Quick Answer: ${result.answer}\n\n`;
-  }
-
-  text += 'Sources:\n';
-  for (const r of result.results) {
-    text += `- ${r.title}\n  ${r.content.slice(0, 300)}...\n  URL: ${r.url}\n\n`;
-  }
-
-  return text;
 }
 
 /**
