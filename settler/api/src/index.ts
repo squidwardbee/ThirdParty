@@ -1,3 +1,7 @@
+// Polyfill File for Node.js 18 (required by OpenAI SDK for file uploads)
+import { File } from 'node:buffer';
+(globalThis as any).File = File;
+
 import dotenv from 'dotenv';
 
 // Load environment variables first

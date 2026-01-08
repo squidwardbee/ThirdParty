@@ -28,9 +28,11 @@ router.post('/', authMiddleware, async (req: AuthenticatedRequest, res: Response
       duration: result.duration,
       language: result.language,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Transcribe] Error:', error);
-    return res.status(500).json({ error: 'Transcription failed' });
+    const errorMessage = error?.message || 'Unknown error';
+    console.error('[Transcribe] Error message:', errorMessage);
+    return res.status(500).json({ error: `Transcription failed: ${errorMessage}` });
   }
 });
 
