@@ -7,6 +7,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, shadows } from '../lib/theme';
 import { useUser } from '../lib/store';
 import { RootStackParamList } from '../navigation';
+import * as Haptics from 'expo-haptics';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -15,10 +16,12 @@ export default function HomeScreen() {
   const user = useUser();
 
   const handleLiveMode = () => {
+    Haptics.selectionAsync();
     navigation.navigate('Setup', { mode: 'live' });
   };
 
   const handleTurnBased = () => {
+    Haptics.selectionAsync();
     navigation.navigate('Setup', { mode: 'turn_based' });
   };
 

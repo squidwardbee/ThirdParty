@@ -15,6 +15,7 @@ import { api } from '../lib/api';
 import { RootStackParamList } from '../navigation';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { startRecording as startAudioRecording, stopRecording as stopAudioRecording, cleanupRecording, requestPermissions } from '../lib/audio';
+import * as Haptics from 'expo-haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LiveMode'>;
 
@@ -44,6 +45,7 @@ export default function LiveModeScreen({ navigation, route }: Props) {
   };
 
   const startRecording = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       const granted = await requestPermissions();
       if (!granted) {
@@ -69,6 +71,7 @@ export default function LiveModeScreen({ navigation, route }: Props) {
   };
 
   const stopAndJudge = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsSubmitting(true);
     setTranscript('Stopping recording...');
 
@@ -223,7 +226,6 @@ export default function LiveModeScreen({ navigation, route }: Props) {
               onPress={stopAndJudge}
               disabled={isSubmitting}
             >
-              <FontAwesome5 name="balance-scale" size={18} color={colors.textInverse} />
               <Text style={styles.stopButtonText}>
                 {isSubmitting ? ' Submitting...' : ' End & Get Judgment'}
               </Text>

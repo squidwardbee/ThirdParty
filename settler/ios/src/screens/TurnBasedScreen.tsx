@@ -15,6 +15,8 @@ import { useAppStore, Turn } from '../lib/store';
 import { api } from '../lib/api';
 import { RootStackParamList } from '../navigation';
 import { startRecording as startAudioRecording, stopRecording as stopAudioRecording, cleanupRecording, requestPermissions } from '../lib/audio';
+import * as Haptics from 'expo-haptics';
+import { FontAwesome5 } from '@expo/vector-icons';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TurnBased'>;
 
@@ -38,6 +40,7 @@ export default function TurnBasedScreen({ navigation, route }: Props) {
   }, []);
 
   const startRecording = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       // Request permissions first
       const granted = await requestPermissions();
@@ -56,6 +59,7 @@ export default function TurnBasedScreen({ navigation, route }: Props) {
   };
 
   const stopRecording = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); 
     try {
       setIsRecording(false);
       setCurrentTranscript('Transcribing...');
@@ -101,6 +105,7 @@ export default function TurnBasedScreen({ navigation, route }: Props) {
   };
 
   const handleJudge = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (turns.length < 2) {
       Alert.alert('Not Enough Arguments', 'Each person needs to make at least one argument.');
       return;
@@ -246,9 +251,19 @@ export default function TurnBasedScreen({ navigation, route }: Props) {
               onPress={handleJudge}
               disabled={isSubmitting}
             >
-              <Text style={styles.judgeButtonText}>
-                {isSubmitting ? 'Submitting...' : '⚖️ Get Judgment'}
-              </Text>
+              {isSubmitting ? (
+                <Text style={styles.judgeButtonText}>Submitting...</Text>
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <FontAwesome5
+                    name="balance-scale"
+                    size={16}
+                    color={colors.textInverse}
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text style={styles.judgeButtonText}>Get Judgment</Text>
+                </View>
+              )}
             </TouchableOpacity>
           )}
         </View>

@@ -20,6 +20,7 @@ import { api } from '../lib/api';
 import { useAppStore } from '../lib/store';
 import { RootStackParamList } from '../navigation';
 import { FontAwesome5, Ionicons, Feather } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Judgment'>;
 
@@ -117,6 +118,7 @@ export default function JudgmentScreen({ navigation, route }: Props) {
   };
 
   const playAudio = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (!argument?.judgment?.audioUrl) return;
 
     try {
@@ -149,6 +151,7 @@ export default function JudgmentScreen({ navigation, route }: Props) {
   };
 
   const handleShare = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); 
     if (!argument?.judgment) return;
 
     try {
@@ -161,6 +164,7 @@ export default function JudgmentScreen({ navigation, route }: Props) {
   };
 
   const handleScreenshot = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (!viewShotRef.current) return;
 
     try {
@@ -195,6 +199,7 @@ export default function JudgmentScreen({ navigation, route }: Props) {
   };
 
   const handleDone = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     navigation.popToTop();
   };
 

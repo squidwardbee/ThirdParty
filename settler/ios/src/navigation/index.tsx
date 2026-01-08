@@ -8,6 +8,7 @@ import { colors } from '../lib/theme';
 import { onAuthChange } from '../lib/firebase';
 import { api } from '../lib/api';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 
 // Screens
 import AuthScreen from '../screens/AuthScreen';
@@ -80,20 +81,35 @@ function MainTabs() {
         },
       })}
     >
-      <Tab.Screen
+       <Tab.Screen
         name="Home"
         component={HomeScreen}
         options={{ tabBarLabel: 'Settle' }}
+        listeners={{
+          tabPress: () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          },
+        }}
       />
       <Tab.Screen
         name="History"
         component={HistoryScreen}
         options={{ tabBarLabel: 'History' }}
+        listeners={{
+          tabPress: () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          },
+        }}
       />
       <Tab.Screen
         name="Settings"
         component={SettingsScreen}
         options={{ tabBarLabel: 'Settings' }}
+        listeners={{
+          tabPress: () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          },
+        }}
       />
     </Tab.Navigator>
   );

@@ -15,6 +15,7 @@ import { Feather, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icon
 import { colors, typography, spacing, borderRadius } from '../lib/theme';
 import { useAppStore, Persona } from '../lib/store';
 import { RootStackParamList } from '../navigation';
+import * as Haptics from 'expo-haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Setup'>;
 
@@ -51,6 +52,7 @@ export default function SetupScreen({ navigation, route }: Props) {
 
   const handleStart = () => {
     if (!canProceed) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     startNewArgument(mode, personAName.trim(), personBName.trim(), selectedPersona);
 
@@ -127,7 +129,10 @@ export default function SetupScreen({ navigation, route }: Props) {
                   styles.personaCard,
                   selectedPersona === persona.id && styles.personaCardSelected,
                 ]}
-                onPress={() => setSelectedPersona(persona.id)}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSelectedPersona(persona.id);
+                }}
                 activeOpacity={0.8}
               >
                 <View style={styles.personaEmoji}>{persona.icon}</View>
