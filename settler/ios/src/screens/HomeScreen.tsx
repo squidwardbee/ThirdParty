@@ -154,8 +154,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerImage: {
-    width: 95,
-    height: 95,
+    width: 105,
+    height: 105,
     marginLeft: spacing.md,
   },
 });
