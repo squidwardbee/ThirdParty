@@ -44,6 +44,8 @@ export default function JudgmentScreen({ navigation, route }: Props) {
   const [argument, setArgument] = useState<ArgumentData | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isReasoningExpanded, setIsReasoningExpanded] = useState(false);
+  const [hasAutoPlayed, setHasAutoPlayed] = useState(false);
 
   const soundRef = useRef<Audio.Sound | null>(null);
   const viewShotRef = useRef<ViewShot>(null);
@@ -58,6 +60,36 @@ export default function JudgmentScreen({ navigation, route }: Props) {
       }
     };
   }, [argumentId]);
+
+  // Auto-play audio when judgment loads
+  useEffect(() => {
+    if (argument?.judgment?.audioUrl && !hasAutoPlayed && !loading) {
+      setHasAutoPlayed(true);
+      playAudioAuto();
+    }
+  }, [argument, loading, hasAutoPlayed]);
+
+  const playAudioAuto = async () => {
+    if (!argument?.judgment?.audioUrl) return;
+
+    try {
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: argument.judgment.audioUrl },
+        { shouldPlay: true }
+      );
+
+      soundRef.current = sound;
+      setIsPlaying(true);
+
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          setIsPlaying(false);
+        }
+      });
+    } catch (error) {
+      console.error('Failed to auto-play audio:', error);
+    }
+  };
 
   const loadArgument = async () => {
     try {
@@ -256,14 +288,35 @@ export default function JudgmentScreen({ navigation, route }: Props) {
               </Text>
             </View>
 
-            {/* Reasoning */}
+            {/* Reasoning - Expandable */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Reasoning</Text>
-              <View style={styles.reasoningCard}>
-                <Text style={styles.reasoningText}>
-                  {argument.judgment.fullResponse || argument.judgment.reasoning}
-                </Text>
-              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setIsReasoningExpanded(!isReasoningExpanded);
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Reasoning</Text>
+                  <Ionicons
+                    name={isReasoningExpanded ? 'chevron-up' : 'chevron-down'}
+                    size={18}
+                    color={colors.textMuted}
+                  />
+                </View>
+                <View style={styles.reasoningCard}>
+                  <Text
+                    style={styles.reasoningText}
+                    numberOfLines={isReasoningExpanded ? undefined : 3}
+                  >
+                    {argument.judgment.fullResponse || argument.judgment.reasoning}
+                  </Text>
+                  {!isReasoningExpanded && (
+                    <Text style={styles.expandHint}>Tap to expand</Text>
+                  )}
+                </View>
+              </TouchableOpacity>
             </View>
 
             {/* Research Sources */}
@@ -394,12 +447,17 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: spacing.lg,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
   sectionTitle: {
     ...typography.caption,
     color: colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 1,
-    marginBottom: spacing.sm,
   },
   reasoningCard: {
     backgroundColor: colors.bgCard,
@@ -410,6 +468,12 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textPrimary,
     lineHeight: 24,
+  },
+  expandHint: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
+    fontStyle: 'italic',
   },
   sourceText: {
     ...typography.caption,
