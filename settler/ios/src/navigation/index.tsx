@@ -22,6 +22,7 @@ import ProcessingScreen from '../screens/ProcessingScreen';
 import JudgmentScreen from '../screens/JudgmentScreen';
 import ArgumentDetailScreen from '../screens/ArgumentDetailScreen';
 import PaywallScreen from '../screens/PaywallScreen';
+import ScreenshotScreen from '../screens/ScreenshotScreen';
 
 // Type definitions for navigation
 export type RootStackParamList = {
@@ -34,6 +35,7 @@ export type RootStackParamList = {
   Judgment: { argumentId: string };
   ArgumentDetail: { argumentId: string };
   Paywall: undefined;
+  Screenshot: undefined;
 };
 
 export type TabParamList = {
@@ -207,6 +209,11 @@ export default function Navigation() {
             <Stack.Screen
               name="Paywall"
               component={PaywallScreen}
+              options={{ presentation: 'modal' }}
+            />
+            <Stack.Screen
+              name="Screenshot"
+              component={ScreenshotScreen}
               options={{ presentation: 'modal' }}
             />
           </>

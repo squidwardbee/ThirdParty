@@ -104,6 +104,13 @@ class ApiClient {
     });
   }
 
+  async judgeScreenshot(screenshotBase64: string, mimeType: string = 'image/png') {
+    return this.request<ScreenshotJudgmentResponse>('/api/arguments/screenshot', {
+      method: 'POST',
+      body: JSON.stringify({ screenshotBase64, mimeType }),
+    });
+  }
+
   // Transcription
   async transcribeAudio(audioBase64: string) {
     return this.request<{ transcription: string }>('/api/transcribe', {
@@ -126,12 +133,18 @@ interface User {
 
 interface Argument {
   id: string;
-  mode: 'live' | 'turn_based';
+  mode: 'live' | 'turn_based' | 'screenshot';
   personAName: string;
   personBName: string;
   persona: string;
   status: string;
+  screenshotUrl?: string;
   createdAt: string;
+}
+
+interface ScreenshotJudgmentResponse {
+  argument: ArgumentWithJudgment;
+  remainingToday: number;
 }
 
 interface ArgumentWithJudgment extends Argument {

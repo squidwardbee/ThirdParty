@@ -27,6 +27,11 @@ export default function HomeScreen() {
     navigation.navigate('Setup', { mode: 'turn_based' });
   };
 
+  const handleScreenshot = () => {
+    Haptics.selectionAsync();
+    navigation.navigate('Screenshot');
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
@@ -68,6 +73,20 @@ export default function HomeScreen() {
             <Text style={styles.modeTitle}>Turn-Based</Text>
             <Text style={styles.modeDescription}>
               Take turns presenting your argument. Each person records separately.
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.modeCard}
+            onPress={handleScreenshot}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.modeIcon, { backgroundColor: colors.primary + '20' }]}>
+              <Ionicons name="image-outline" size={28} color={colors.primary} />
+            </View>
+            <Text style={styles.modeTitle}>Screenshot</Text>
+            <Text style={styles.modeDescription}>
+              Upload a screenshot of a text conversation. AI analyzes who's right.
             </Text>
           </TouchableOpacity>
         </View>
