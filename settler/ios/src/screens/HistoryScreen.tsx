@@ -1,18 +1,65 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius } from '../lib/theme';
-import { useArguments, Argument } from '../lib/store';
+import { useArguments, Argument, useAppStore } from '../lib/store';
 import { RootStackParamList } from '../navigation';
+import * as Haptics from 'expo-haptics';
+import { api } from '../lib/api';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function HistoryScreen() {
   const navigation = useNavigation<NavigationProp>();
   const arguments_ = useArguments();
+  const setArguments = useAppStore((state) => state.setArguments);
+
+  useEffect(() => {
+    const loadArguments = async () => {
+      try {
+        const response = await api.getArguments();
+        const normalized: Argument[] = response.map((arg: any) => ({
+          id: arg.id,
+          mode: arg.mode,
+          personAName: arg.personAName,
+          personBName: arg.personBName,
+          persona: arg.persona,
+          status: arg.status,
+          createdAt: arg.createdAt,
+          turns: (arg.turns || []).map((t: any) => ({
+            id: t.id,
+            speaker: t.speaker,
+            speakerName:
+              t.speaker === 'person_a' ? arg.personAName : arg.personBName,
+            transcription: t.transcription,
+            audioUri: t.audioUrl || undefined,
+            durationSeconds: t.durationSeconds || undefined,
+          })),
+          judgment: arg.judgment
+            ? {
+                id: arg.judgment.id,
+                winner: arg.judgment.winner,
+                winnerName: arg.judgment.winnerName,
+                reasoning: arg.judgment.reasoning,
+                fullResponse: arg.judgment.fullResponse,
+                audioUrl: arg.judgment.audioUrl || undefined,
+                researchPerformed: arg.judgment.researchPerformed,
+                sources: arg.judgment.sources || undefined,
+              }
+            : undefined,
+        }));
+
+        setArguments(normalized);
+      } catch (error) {
+        console.error('Error fetching arguments:', error);
+      }
+    };
+
+    loadArguments();
+  }, []);
 
   const renderArgument = ({ item }: { item: Argument }) => {
     const winnerColor =
@@ -26,7 +73,10 @@ export default function HistoryScreen() {
       <TouchableOpacity
         style={styles.argumentCard}
         activeOpacity={0.8}
-        onPress={() => navigation.navigate('ArgumentDetail', { argumentId: item.id })}
+        onPress={() => {
+          Haptics.selectionAsync();
+          navigation.navigate('ArgumentDetail', { argumentId: item.id });
+        }}
       >
         <View style={styles.argumentHeader}>
           <Text style={styles.argumentParticipants}>
@@ -62,8 +112,8 @@ export default function HistoryScreen() {
             <Ionicons name="repeat-outline" size={14} color={colors.textMuted} />
           )}
           <Text style={styles.argumentMode}>
-            {item.mode === 'live' ? ' Live' : ' Turn-based'} • {item.turns.length} turn
-            {item.turns.length !== 1 ? 's' : ''}
+            {item.mode === 'live' ? ' Live' : ' Turn-based'} • {item.turns.length}{' '}
+            turn{item.turns.length !== 1 ? 's' : ''}
           </Text>
         </View>
       </TouchableOpacity>
