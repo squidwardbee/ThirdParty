@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { ChatCompletionMessageParam } from 'openai/resources/chat';
+import { ChatCompletionMessageParam, ChatCompletionContentPart } from 'openai/resources/chat';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -139,4 +139,80 @@ function parseVerdict(
   const reasoning = response.replace(/VERDICT:.+$/i, '').trim();
 
   return { winner, winnerName, reasoning };
+}
+
+/**
+ * Generate a judgment from a screenshot of a text conversation using GPT-4 Vision
+ */
+export async function generateScreenshotJudgment(
+  screenshotBase64: string,
+  mimeType: string = 'image/png'
+): Promise<JudgmentResult> {
+  const systemPrompt = `You are a fair judge analyzing a text conversation screenshot.
+The RIGHT side of the conversation is the user who uploaded this. The LEFT side is the other person.
+Analyze who is more correct or reasonable in this conversation.
+
+Give 2-3 sentences about each person's argument.
+Then declare who is right.
+
+RULES:
+1. 2-3 sentences about the person on the LEFT
+2. 2-3 sentences about the person on the RIGHT (the user)
+3. End with: VERDICT: LEFT or VERDICT: RIGHT or VERDICT: TIE
+4. Keep total under 150 words.`;
+
+  const imageContent: ChatCompletionContentPart = {
+    type: 'image_url',
+    image_url: {
+      url: `data:${mimeType};base64,${screenshotBase64}`,
+      detail: 'high',
+    },
+  };
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      { role: 'system', content: systemPrompt },
+      {
+        role: 'user',
+        content: [
+          imageContent,
+          { type: 'text', text: 'Judge this conversation. Who is right?' },
+        ],
+      },
+    ],
+    temperature: 0.7,
+    max_tokens: 300,
+  });
+
+  const fullResponse = response.choices[0].message.content || '';
+
+  // Parse verdict for LEFT/RIGHT
+  const verdictMatch = fullResponse.match(/VERDICT:\s*(.+?)(?:\n|$)/i);
+  const verdictText = verdictMatch ? verdictMatch[1].trim().toLowerCase() : '';
+
+  let winner: 'person_a' | 'person_b' | 'tie' = 'tie';
+  let winnerName = 'Tie';
+
+  if (verdictText.includes('tie') || verdictText.includes('draw')) {
+    winner = 'tie';
+    winnerName = 'Tie';
+  } else if (verdictText.includes('right') || verdictText.includes('user')) {
+    winner = 'person_b'; // Right side = user = person_b
+    winnerName = 'You';
+  } else if (verdictText.includes('left') || verdictText.includes('other')) {
+    winner = 'person_a'; // Left side = other person = person_a
+    winnerName = 'Other Person';
+  }
+
+  const reasoning = fullResponse.replace(/VERDICT:.+$/i, '').trim();
+
+  return {
+    winner,
+    winnerName,
+    reasoning,
+    fullResponse,
+    researchPerformed: false,
+    sources: [],
+  };
 }

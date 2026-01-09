@@ -13,9 +13,9 @@ import {
   AddTurnRequest,
   ArgumentWithDetails,
 } from '../types';
-import { generateJudgment, ArgumentTurn as JudgmentTurn } from '../services/judgment';
+import { generateJudgment, generateScreenshotJudgment, ArgumentTurn as JudgmentTurn } from '../services/judgment';
 import { generateJudgmentAudio } from '../services/tts';
-import { uploadAudio } from '../services/storage';
+import { uploadAudio, uploadScreenshot } from '../services/storage';
 import { transcribeFromBase64 } from '../services/transcription';
 import {
   canCreateArgument,
@@ -33,11 +33,12 @@ function rowToArgument(row: ArgumentRow): Argument {
   return {
     id: row.id,
     userId: row.user_id,
-    mode: row.mode as 'live' | 'turn_based',
+    mode: row.mode as 'live' | 'turn_based' | 'screenshot',
     personAName: row.person_a_name,
     personBName: row.person_b_name,
     persona: row.persona as Argument['persona'],
     status: row.status as Argument['status'],
+    screenshotUrl: row.screenshot_url,
     createdAt: row.created_at,
     completedAt: row.completed_at,
   };
@@ -140,7 +141,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
-    if (!['live', 'turn_based'].includes(mode)) {
+    if (!['live', 'turn_based', 'screenshot'].includes(mode)) {
       res.status(400).json({ error: 'Invalid mode' });
       return;
     }
@@ -552,6 +553,132 @@ router.post('/:id/judge', async (req: AuthenticatedRequest, res: Response) => {
     // Reset status on error
     await query("UPDATE arguments SET status = 'recording' WHERE id = $1", [req.params.id]);
     res.status(500).json({ error: 'Failed to judge argument' });
+  }
+});
+
+/**
+ * POST /api/arguments/screenshot
+ * Create an argument from a screenshot and get AI judgment
+ */
+router.post('/screenshot', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { screenshotBase64, mimeType = 'image/png' } = req.body;
+
+    if (!screenshotBase64) {
+      res.status(400).json({ error: 'Missing screenshot data' });
+      return;
+    }
+
+    // Get user
+    const user = await queryOne<{ id: string }>(
+      'SELECT id FROM users WHERE firebase_uid = $1',
+      [req.user!.uid]
+    );
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // Check usage limits
+    const usageCheck = await canCreateArgument(user.id);
+    if (!usageCheck.allowed) {
+      res.status(429).json({
+        error: usageCheck.reason,
+        code: 'LIMIT_EXCEEDED',
+        remaining: usageCheck.remaining,
+      });
+      return;
+    }
+
+    // Create argument record
+    const argumentId = uuidv4();
+
+    // Upload screenshot to S3
+    const base64Data = screenshotBase64.replace(/^data:image\/\w+;base64,/, '');
+    const imageBuffer = Buffer.from(base64Data, 'base64');
+    const uploadResult = await uploadScreenshot(imageBuffer, user.id, argumentId, mimeType);
+
+    // Create argument in database
+    const argumentRows = await query<ArgumentRow>(
+      `INSERT INTO arguments (id, user_id, mode, person_a_name, person_b_name, persona, status, screenshot_url)
+       VALUES ($1, $2, 'screenshot', 'Other Person', 'You', 'mediator', 'processing', $3)
+       RETURNING *`,
+      [argumentId, user.id, uploadResult.url]
+    );
+
+    // Update user's daily count
+    await incrementArgumentCount(user.id);
+
+    // Generate AI judgment from screenshot
+    const judgmentResult = await generateScreenshotJudgment(base64Data, mimeType);
+
+    // Generate audio for the judgment
+    let audioUrl: string | null = null;
+    let audioDurationSeconds: number | null = null;
+
+    try {
+      const audioResult = await generateJudgmentAudio(
+        {
+          winnerName: judgmentResult.winnerName,
+          reasoning: judgmentResult.reasoning,
+          fullResponse: judgmentResult.fullResponse,
+        },
+        'mediator'
+      );
+
+      const audioUploadResult = await uploadAudio(
+        audioResult.audioBuffer,
+        user.id,
+        argumentId,
+        'judgment'
+      );
+
+      audioUrl = audioUploadResult.url;
+      audioDurationSeconds = audioResult.durationSeconds;
+    } catch (audioError) {
+      console.error('Failed to generate judgment audio:', audioError);
+    }
+
+    // Save judgment to database
+    const judgmentId = uuidv4();
+    const judgmentRows = await query<JudgmentRow>(
+      `INSERT INTO judgments (
+        id, argument_id, winner, winner_name, reasoning, full_response,
+        research_performed, sources, audio_url, audio_duration_seconds
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      RETURNING *`,
+      [
+        judgmentId,
+        argumentId,
+        judgmentResult.winner,
+        judgmentResult.winnerName,
+        judgmentResult.reasoning,
+        judgmentResult.fullResponse,
+        false,
+        JSON.stringify([]),
+        audioUrl,
+        audioDurationSeconds,
+      ]
+    );
+
+    // Update argument status
+    await query(
+      "UPDATE arguments SET status = 'completed', completed_at = NOW() WHERE id = $1",
+      [argumentId]
+    );
+
+    res.status(201).json({
+      argument: {
+        ...rowToArgument(argumentRows[0]),
+        turns: [],
+        judgment: rowToJudgment(judgmentRows[0]),
+      },
+      remainingToday: usageCheck.remaining,
+    });
+  } catch (error) {
+    console.error('Error processing screenshot:', error);
+    res.status(500).json({ error: 'Failed to process screenshot' });
   }
 });
 

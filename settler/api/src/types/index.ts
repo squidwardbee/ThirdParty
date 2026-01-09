@@ -20,11 +20,12 @@ export type Persona = 'mediator' | 'judge_judy' | 'comedic';
 export interface Argument {
   id: string;
   userId: string;
-  mode: 'live' | 'turn_based';
+  mode: 'live' | 'turn_based' | 'screenshot';
   personAName: string;
   personBName: string;
   persona: Persona;
   status: 'recording' | 'processing' | 'completed' | 'failed';
+  screenshotUrl?: string | null;
   createdAt: Date;
   completedAt: Date | null;
 }
@@ -57,10 +58,15 @@ export interface Judgment {
 
 // API Request/Response types
 export interface CreateArgumentRequest {
-  mode: 'live' | 'turn_based';
+  mode: 'live' | 'turn_based' | 'screenshot';
   personAName: string;
   personBName: string;
   persona: Persona;
+}
+
+export interface ScreenshotJudgmentRequest {
+  screenshotBase64: string;
+  mimeType?: string;
 }
 
 export interface AddTurnRequest {
@@ -99,6 +105,7 @@ export interface ArgumentRow {
   person_b_name: string;
   persona: string;
   status: string;
+  screenshot_url: string | null;
   created_at: Date;
   completed_at: Date | null;
 }

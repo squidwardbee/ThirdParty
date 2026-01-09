@@ -134,3 +134,45 @@ export async function getUploadUrl(
 
   return { uploadUrl, key };
 }
+
+/**
+ * Upload screenshot image to S3
+ */
+export async function uploadScreenshot(
+  imageBuffer: Buffer,
+  userId: string,
+  argumentId: string,
+  mimeType: string = 'image/png'
+): Promise<UploadResult> {
+  const extension = mimeType.includes('jpeg') || mimeType.includes('jpg') ? 'jpg' : 'png';
+  const key = `screenshots/${userId}/${argumentId}/screenshot.${extension}`;
+
+  const upload = new Upload({
+    client: s3Client,
+    params: {
+      Bucket: BUCKET_NAME,
+      Key: key,
+      Body: imageBuffer,
+      ContentType: mimeType,
+      CacheControl: 'max-age=31536000',
+    },
+  });
+
+  await upload.done();
+
+  const url = await getSignedScreenshotUrl(key);
+
+  return { key, url };
+}
+
+/**
+ * Get a signed URL for a screenshot
+ */
+export async function getSignedScreenshotUrl(key: string): Promise<string> {
+  const command = new GetObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: key,
+  });
+
+  return getSignedUrl(s3Client, command, { expiresIn: 86400 }); // 24 hours
+}
