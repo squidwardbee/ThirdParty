@@ -8,6 +8,8 @@ import { colors, typography, spacing, borderRadius, shadows } from '../lib/theme
 import { useUser } from '../lib/store';
 import { RootStackParamList } from '../navigation';
 import * as Haptics from 'expo-haptics';
+import { Image } from 'react-native';
+import homeImage from '../../assets/home_screen_2.png';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -30,10 +32,13 @@ export default function HomeScreen() {
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.greeting}>
-            Hey{user?.displayName ? `, ${user.displayName}` : ''}!
-          </Text>
-          <Text style={styles.title}>Ready to settle?</Text>
+          <View style={styles.textContainer}>
+            <Text style={styles.greeting}>
+              Hey{user?.displayName ? `, ${user.displayName}` : ''}!
+            </Text>
+            <Text style={styles.title}>Let's talk it out</Text>
+          </View>
+          <Image source={homeImage} style={styles.headerImage} resizeMode="contain" />
         </View>
 
         {/* Mode Selection */}
@@ -91,6 +96,9 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xl,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: spacing.xl,
   },
   greeting: {
@@ -141,5 +149,13 @@ const styles = StyleSheet.create({
   usageText: {
     ...typography.caption,
     color: colors.textMuted,
+  },
+    textContainer: {
+    flex: 1,
+  },
+  headerImage: {
+    width: 95,
+    height: 95,
+    marginLeft: spacing.md,
   },
 });
