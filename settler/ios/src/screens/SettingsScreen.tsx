@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,22 +7,112 @@ import {
   Alert,
   ScrollView,
   Linking,
+  Animated,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors, typography, spacing, borderRadius } from '../lib/theme';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { colors, typography, spacing, borderRadius, shadows } from '../lib/theme';
 import { useAppStore, useUser, useIsPremium } from '../lib/store';
 import { api } from '../lib/api';
 import { signOut } from '../lib/firebase';
 import { getManagementUrl } from '../lib/purchases';
-import { RootStackParamList } from '../navigation';
+import * as Haptics from 'expo-haptics';
+
+function SettingsRow({
+  icon,
+  label,
+  value,
+  onPress,
+  showChevron = true,
+  danger = false,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value?: string;
+  onPress?: () => void;
+  showChevron?: boolean;
+  danger?: boolean;
+}) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.98,
+      useNativeDriver: true,
+      speed: 50,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 50,
+    }).start();
+  };
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <Pressable
+        onPress={() => {
+          if (onPress) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onPress();
+          }
+        }}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={!onPress}
+      >
+        <View style={[styles.menuItem, danger && styles.menuItemDanger]}>
+          <View style={styles.menuItemLeft}>
+            <View style={[styles.iconContainer, danger && styles.iconContainerDanger]}>
+              {icon}
+            </View>
+            <Text style={[styles.menuItemText, danger && styles.menuItemTextDanger]}>
+              {label}
+            </Text>
+          </View>
+          <View style={styles.menuItemRight}>
+            {value && <Text style={styles.menuItemValue}>{value}</Text>}
+            {showChevron && onPress && (
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+            )}
+          </View>
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+}
 
 export default function SettingsScreen({ navigation }: any) {
   const user = useUser();
   const isPremium = useIsPremium();
   const logout = useAppStore((state) => state.logout);
 
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(-20)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
   const handleLogout = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -34,7 +124,7 @@ export default function SettingsScreen({ navigation }: any) {
             logout();
           } catch (error) {
             console.error('Sign out error:', error);
-            logout(); // Still logout locally even if Firebase fails
+            logout();
           }
         },
       },
@@ -42,6 +132,7 @@ export default function SettingsScreen({ navigation }: any) {
   };
 
   const handleDeleteAccount = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert(
       'Delete Account',
       'Are you sure? This action cannot be undone and all your data will be permanently deleted.',
@@ -78,6 +169,7 @@ export default function SettingsScreen({ navigation }: any) {
   };
 
   const handleUpgrade = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     navigation.navigate('Paywall');
   };
 
@@ -85,99 +177,160 @@ export default function SettingsScreen({ navigation }: any) {
     Linking.openURL(getManagementUrl());
   };
 
+  const getPersonaName = () => {
+    switch (user?.preferredPersona) {
+      case 'judge_judy':
+        return 'Judge Judy';
+      case 'comedic':
+        return 'The Comedian';
+      default:
+        return 'The Mediator';
+    }
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Settings</Text>
+    <View style={styles.container}>
+      {/* Background */}
+      <LinearGradient
+        colors={['#0A0A0F', '#12121A', '#0A0A0F']}
+        style={StyleSheet.absoluteFillObject}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
 
-        {/* Account Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
+      {/* Glow orbs */}
+      <View style={styles.glowContainer} pointerEvents="none">
+        <View style={[styles.glowOrb, styles.glowGreen]} />
+        <View style={[styles.glowOrb, styles.glowPink]} />
+      </View>
 
-          <View style={styles.infoCard}>
-            <Text style={styles.infoLabel}>Email</Text>
-            <Text style={styles.infoValue}>{user?.email || 'Not signed in'}</Text>
-          </View>
+      <SafeAreaView style={styles.safeArea}>
+        {/* Header */}
+        <Animated.View
+          style={[
+            styles.header,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <Text style={styles.overline}>PREFERENCES</Text>
+          <Text style={styles.title}>Settings</Text>
+        </Animated.View>
 
-          <View style={styles.infoCard}>
-            <Text style={styles.infoLabel}>Subscription</Text>
-            <View style={styles.subscriptionRow}>
-              <Text style={styles.infoValue}>
-                {isPremium ? 'Premium' : 'Free'}
-              </Text>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Account Section */}
+          <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+            <Text style={styles.sectionTitle}>ACCOUNT</Text>
+
+            {/* Profile Card */}
+            <View style={styles.profileCard}>
+              <View style={styles.profileAvatar}>
+                <Ionicons name="person" size={24} color={colors.primary} />
+              </View>
+              <View style={styles.profileInfo}>
+                <Text style={styles.profileEmail}>{user?.email || 'Not signed in'}</Text>
+                <View style={styles.subscriptionBadge}>
+                  {isPremium ? (
+                    <>
+                      <Ionicons name="star" size={12} color={colors.primary} />
+                      <Text style={styles.subscriptionText}>Premium</Text>
+                    </>
+                  ) : (
+                    <Text style={styles.subscriptionTextFree}>Free Plan</Text>
+                  )}
+                </View>
+              </View>
               {!isPremium && (
                 <TouchableOpacity
                   style={styles.upgradeButton}
                   onPress={handleUpgrade}
+                  activeOpacity={0.8}
                 >
-                  <Text style={styles.upgradeButtonText}>Upgrade</Text>
+                  <LinearGradient
+                    colors={[colors.primary, colors.primaryDark]}
+                    style={styles.upgradeGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Text style={styles.upgradeButtonText}>Upgrade</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               )}
             </View>
-          </View>
-        </View>
+          </Animated.View>
 
-        {/* Preferences Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Preferences</Text>
+          {/* Preferences Section */}
+          <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+            <Text style={styles.sectionTitle}>PREFERENCES</Text>
+            <View style={styles.menuGroup}>
+              <SettingsRow
+                icon={<MaterialCommunityIcons name="scale-balance" size={20} color={colors.primary} />}
+                label="Default Judge"
+                value={getPersonaName()}
+                onPress={() => {}}
+              />
+            </View>
+          </Animated.View>
 
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuItemText}>AI Persona</Text>
-            <Text style={styles.menuItemValue}>
-              {user?.preferredPersona === 'judge_judy'
-                ? 'Judge Judy'
-                : user?.preferredPersona === 'comedic'
-                ? 'Comedic'
-                : 'Mediator'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+          {/* Support Section */}
+          <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+            <Text style={styles.sectionTitle}>SUPPORT</Text>
+            <View style={styles.menuGroup}>
+              <SettingsRow
+                icon={<Ionicons name="shield-checkmark-outline" size={20} color={colors.textSecondary} />}
+                label="Privacy Policy"
+                onPress={() => Linking.openURL('https://thirdparty.app/privacy')}
+              />
+              <SettingsRow
+                icon={<Ionicons name="document-text-outline" size={20} color={colors.textSecondary} />}
+                label="Terms of Service"
+                onPress={() => Linking.openURL('https://thirdparty.app/terms')}
+              />
+              {isPremium && (
+                <SettingsRow
+                  icon={<Ionicons name="card-outline" size={20} color={colors.textSecondary} />}
+                  label="Manage Subscription"
+                  onPress={handleManageSubscription}
+                />
+              )}
+            </View>
+          </Animated.View>
 
-        {/* Support Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Support</Text>
+          {/* Account Actions */}
+          <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+            <Text style={styles.sectionTitle}>ACCOUNT ACTIONS</Text>
+            <View style={styles.menuGroup}>
+              <SettingsRow
+                icon={<Ionicons name="log-out-outline" size={20} color={colors.textSecondary} />}
+                label="Sign Out"
+                onPress={handleLogout}
+                showChevron={false}
+              />
+              <SettingsRow
+                icon={<Ionicons name="trash-outline" size={20} color={colors.error} />}
+                label="Delete Account"
+                onPress={handleDeleteAccount}
+                showChevron={false}
+                danger
+              />
+            </View>
+          </Animated.View>
 
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuItemText}>Privacy Policy</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <Text style={styles.menuItemText}>Terms of Service</Text>
-          </TouchableOpacity>
-
-          {isPremium && (
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={handleManageSubscription}
-            >
-              <Text style={styles.menuItemText}>Manage Subscription</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Danger Zone */}
-        <View style={styles.section}>
-          <TouchableOpacity
-            style={styles.dangerButton}
-            onPress={handleLogout}
-          >
-            <Text style={styles.dangerButtonText}>Sign Out</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.dangerButton, styles.deleteButton]}
-            onPress={handleDeleteAccount}
-          >
-            <Text style={[styles.dangerButtonText, styles.deleteButtonText]}>
-              Delete Account
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Version */}
-        <Text style={styles.version}>Version 1.0.0</Text>
-      </ScrollView>
-    </SafeAreaView>
+          {/* Footer */}
+          <Animated.View style={[styles.footer, { opacity: fadeAnim }]}>
+            <View style={styles.footerLine} />
+            <Text style={styles.version}>ThirdParty v1.0.0</Text>
+            <Text style={styles.copyright}>Fair judgments, every time</Text>
+          </Animated.View>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -186,99 +339,203 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bgPrimary,
   },
-  content: {
-    padding: spacing.lg,
+  safeArea: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: spacing.screenPadding,
+    paddingBottom: spacing.xxl,
+  },
+
+  // Glow effects
+  glowContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflow: 'hidden',
+  },
+  glowOrb: {
+    position: 'absolute',
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+  },
+  glowGreen: {
+    top: -80,
+    right: -80,
+    backgroundColor: colors.primary,
+    opacity: 0.06,
+  },
+  glowPink: {
+    bottom: 200,
+    left: -100,
+    backgroundColor: colors.secondary,
+    opacity: 0.06,
+  },
+
+  // Header
+  header: {
+    paddingHorizontal: spacing.screenPadding,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  overline: {
+    ...typography.overline,
+    color: colors.primary,
+    marginBottom: spacing.xs,
   },
   title: {
     ...typography.h1,
     color: colors.textPrimary,
-    marginBottom: spacing.xl,
   },
+
+  // Section
   section: {
-    marginBottom: spacing.xl,
+    marginTop: spacing.xl,
   },
   sectionTitle: {
-    ...typography.caption,
+    ...typography.overline,
     color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
-  infoCard: {
+
+  // Profile Card
+  profileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.bgCard,
-    borderRadius: borderRadius.md,
+    borderRadius: borderRadius.card,
     padding: spacing.md,
-    marginBottom: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
+    ...shadows.sm,
   },
-  infoLabel: {
-    ...typography.small,
-    color: colors.textMuted,
-    marginBottom: spacing.xs,
-  },
-  infoValue: {
-    ...typography.body,
-    color: colors.textPrimary,
-  },
-  subscriptionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  profileAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: `${colors.primary}15`,
+    justifyContent: 'center',
     alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  profileEmail: {
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+    marginBottom: spacing.xxs,
+  },
+  subscriptionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  subscriptionText: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  subscriptionTextFree: {
+    ...typography.caption,
+    color: colors.textSecondary,
   },
   upgradeButton: {
-    backgroundColor: colors.secondary,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
     borderRadius: borderRadius.sm,
+    overflow: 'hidden',
+  },
+  upgradeGradient: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   upgradeButtonText: {
     ...typography.caption,
     color: colors.textInverse,
     fontWeight: '600',
   },
-  menuItem: {
+
+  // Menu Group
+  menuGroup: {
     backgroundColor: colors.bgCard,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    borderRadius: borderRadius.card,
     borderWidth: 1,
     borderColor: colors.border,
+    overflow: 'hidden',
+    ...shadows.sm,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  menuItemDanger: {
+    borderBottomWidth: 0,
+  },
+  menuItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  iconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.bgTertiary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  iconContainerDanger: {
+    backgroundColor: `${colors.error}15`,
   },
   menuItemText: {
     ...typography.body,
     color: colors.textPrimary,
   },
+  menuItemTextDanger: {
+    color: colors.error,
+  },
+  menuItemRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   menuItemValue: {
     ...typography.body,
     color: colors.textSecondary,
   },
-  dangerButton: {
-    backgroundColor: colors.bgTertiary,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
+
+  // Footer
+  footer: {
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    marginTop: spacing.xxl,
   },
-  dangerButtonText: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-  },
-  deleteButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: colors.error,
-  },
-  deleteButtonText: {
-    color: colors.error,
+  footerLine: {
+    width: 40,
+    height: 1,
+    backgroundColor: colors.border,
+    marginBottom: spacing.md,
   },
   version: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginBottom: spacing.xxs,
+  },
+  copyright: {
     ...typography.small,
     color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: spacing.lg,
+    fontStyle: 'italic',
   },
 });

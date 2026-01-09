@@ -7,7 +7,9 @@ import {
   ScrollView,
   Share,
   Alert,
-  Platform,
+  Animated,
+  Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -15,11 +17,12 @@ import { Audio } from 'expo-av';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import * as MediaLibrary from 'expo-media-library';
-import { colors, typography, spacing, borderRadius } from '../lib/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { colors, typography, spacing, borderRadius, shadows, animation, getParticipantColors } from '../lib/theme';
 import { api } from '../lib/api';
 import { useAppStore } from '../lib/store';
 import { RootStackParamList } from '../navigation';
-import { FontAwesome5, Ionicons, Feather } from '@expo/vector-icons';
+import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Judgment'>;
@@ -47,6 +50,12 @@ export default function JudgmentScreen({ navigation, route }: Props) {
   const [isReasoningExpanded, setIsReasoningExpanded] = useState(false);
   const [hasAutoPlayed, setHasAutoPlayed] = useState(false);
 
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
+
   const soundRef = useRef<Audio.Sound | null>(null);
   const viewShotRef = useRef<ViewShot>(null);
   const addArgument = useAppStore((state) => state.addArgument);
@@ -61,11 +70,54 @@ export default function JudgmentScreen({ navigation, route }: Props) {
     };
   }, [argumentId]);
 
+  // Entrance animation
+  useEffect(() => {
+    if (!loading && argument?.judgment) {
+      // Dramatic reveal sequence
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+          Animated.spring(scaleAnim, {
+            toValue: 1,
+            tension: 50,
+            friction: 7,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      // Glow pulse animation
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(glowAnim, {
+            toValue: 1,
+            duration: 2000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(glowAnim, {
+            toValue: 0.5,
+            duration: 2000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }
+  }, [loading, argument]);
+
   // Auto-play audio when judgment loads
   useEffect(() => {
     if (argument?.judgment?.audioUrl && !hasAutoPlayed && !loading) {
       setHasAutoPlayed(true);
-      playAudioAuto();
+      setTimeout(() => playAudioAuto(), 800); // Delay for dramatic effect
     }
   }, [argument, loading, hasAutoPlayed]);
 
@@ -95,7 +147,6 @@ export default function JudgmentScreen({ navigation, route }: Props) {
     try {
       const data = await api.getArgument(argumentId);
 
-      // Convert null to undefined for optional fields
       const judgment = data.judgment ? {
         ...data.judgment,
         audioUrl: data.judgment.audioUrl || undefined,
@@ -109,7 +160,6 @@ export default function JudgmentScreen({ navigation, route }: Props) {
         judgment,
       });
 
-      // Add to local history
       const turns = (data.turns || []).map((t: any) => ({
         id: t.id,
         speaker: t.speaker,
@@ -183,12 +233,12 @@ export default function JudgmentScreen({ navigation, route }: Props) {
   };
 
   const handleShare = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); 
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (!argument?.judgment) return;
 
     try {
       await Share.share({
-        message: `Settler Judgment:\n\n${argument.personAName} vs ${argument.personBName}\n\nWinner: ${argument.judgment.winnerName}\n\n${argument.judgment.reasoning}`,
+        message: `The Verdict\n\n${argument.personAName} vs ${argument.personBName}\n\nWinner: ${argument.judgment.winnerName}\n\n${argument.judgment.reasoning}\n\n— Settled with ThirdParty`,
       });
     } catch (error) {
       console.error('Share error:', error);
@@ -200,26 +250,23 @@ export default function JudgmentScreen({ navigation, route }: Props) {
     if (!viewShotRef.current) return;
 
     try {
-      // Capture the view as an image
       const uri = await captureRef(viewShotRef, {
         format: 'png',
         quality: 1,
       });
 
-      // Check if sharing is available
       const isAvailable = await Sharing.isAvailableAsync();
 
       if (isAvailable) {
         await Sharing.shareAsync(uri, {
           mimeType: 'image/png',
-          dialogTitle: 'Share Verdict Screenshot',
+          dialogTitle: 'Share Verdict',
         });
       } else {
-        // Fallback: Save to camera roll
         const { status } = await MediaLibrary.requestPermissionsAsync();
         if (status === 'granted') {
           await MediaLibrary.saveToLibraryAsync(uri);
-          Alert.alert('Saved!', 'Screenshot saved to your photo library');
+          Alert.alert('Saved!', 'Verdict saved to your photo library');
         } else {
           Alert.alert('Permission Required', 'Please grant permission to save photos');
         }
@@ -231,148 +278,222 @@ export default function JudgmentScreen({ navigation, route }: Props) {
   };
 
   const handleDone = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     navigation.popToTop();
   };
 
+  // Loading state
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
+        <LinearGradient
+          colors={[colors.bgPrimary, colors.bgSecondary]}
+          style={StyleSheet.absoluteFillObject}
+        />
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading judgment...</Text>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Preparing the verdict...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
+  // Error state
   if (!argument?.judgment) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.errorText}>No judgment found</Text>
-          <TouchableOpacity style={styles.doneButton} onPress={handleDone}>
-            <Text style={styles.doneButtonText}>Go Back</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+      <View style={styles.container}>
+        <LinearGradient
+          colors={[colors.bgPrimary, colors.bgSecondary]}
+          style={StyleSheet.absoluteFillObject}
+        />
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.loadingContainer}>
+            <Ionicons name="alert-circle-outline" size={48} color={colors.error} />
+            <Text style={styles.errorText}>No verdict found</Text>
+            <TouchableOpacity style={styles.primaryButton} onPress={handleDone}>
+              <Text style={styles.primaryButtonText}>Go Back</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </View>
     );
   }
 
-  const winnerColor =
-    argument.judgment.winner === 'person_a'
-      ? colors.personA
-      : argument.judgment.winner === 'person_b'
-      ? colors.personB
-      : colors.secondary;
+  const winnerColors = argument.judgment.winner === 'tie'
+    ? { main: colors.primary, bg: colors.primaryMuted }
+    : getParticipantColors(argument.judgment.winner);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* Capturable content */}
-        <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
-          <View style={styles.captureArea}>
-            {/* Header */}
-            <View style={styles.header}>
-              <Text style={styles.title}>The Verdict</Text>
-              <Text style={styles.participants}>
-                {argument.personAName} vs {argument.personBName}
-              </Text>
-            </View>
+    <View style={styles.container}>
+      {/* Background */}
+      <LinearGradient
+        colors={[colors.bgPrimary, colors.bgSecondary, colors.bgPrimary]}
+        style={StyleSheet.absoluteFillObject}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
 
-            {/* Winner Announcement */}
-            <View style={[styles.winnerCard, { borderColor: winnerColor }]}>
-              <FontAwesome5 name="trophy" size={48} color={winnerColor} style={styles.winnerEmoji} />
-              <Text style={styles.winnerLabel}>Winner</Text>
-              <Text style={[styles.winnerName, { color: winnerColor }]}>
-                {argument.judgment.winnerName}
-              </Text>
-            </View>
+      {/* Spotlight glow behind winner card */}
+      <Animated.View style={[styles.spotlightGlow, { opacity: glowAnim }]}>
+        <LinearGradient
+          colors={[`${winnerColors.main}20`, 'transparent']}
+          style={styles.spotlightGradient}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+        />
+      </Animated.View>
 
-            {/* Reasoning - Expandable */}
-            <View style={styles.section}>
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setIsReasoningExpanded(!isReasoningExpanded);
-                }}
-                activeOpacity={0.7}
+      <SafeAreaView style={styles.safeArea}>
+        {/* Close button */}
+        <TouchableOpacity style={styles.closeButton} onPress={handleDone}>
+          <Ionicons name="close" size={24} color={colors.textSecondary} />
+        </TouchableOpacity>
+
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Capturable content */}
+          <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
+            <View style={styles.captureArea}>
+              {/* Header */}
+              <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
+                <Text style={styles.overline}>THE VERDICT</Text>
+                <Text style={styles.matchup}>
+                  {argument.personAName} vs {argument.personBName}
+                </Text>
+              </Animated.View>
+
+              {/* Winner Card */}
+              <Animated.View
+                style={[
+                  styles.winnerCard,
+                  {
+                    opacity: fadeAnim,
+                    transform: [{ scale: scaleAnim }],
+                    borderColor: winnerColors.main,
+                  },
+                ]}
               >
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Reasoning</Text>
-                  <Ionicons
-                    name={isReasoningExpanded ? 'chevron-up' : 'chevron-down'}
-                    size={18}
-                    color={colors.textMuted}
+                <View style={[styles.trophyContainer, { backgroundColor: `${winnerColors.main}15` }]}>
+                  <MaterialCommunityIcons
+                    name={argument.judgment.winner === 'tie' ? 'scale-balance' : 'trophy'}
+                    size={40}
+                    color={winnerColors.main}
                   />
                 </View>
-                <View style={styles.reasoningCard}>
-                  <Text
-                    style={styles.reasoningText}
-                    numberOfLines={isReasoningExpanded ? undefined : 3}
+
+                <Text style={styles.winnerLabel}>
+                  {argument.judgment.winner === 'tie' ? "IT'S A TIE" : 'WINNER'}
+                </Text>
+
+                <Text style={[styles.winnerName, { color: winnerColors.main }]}>
+                  {argument.judgment.winnerName}
+                </Text>
+
+                {/* Audio controls inline */}
+                {argument.judgment.audioUrl && (
+                  <Pressable
+                    style={styles.audioControl}
+                    onPress={playAudio}
                   >
-                    {argument.judgment.fullResponse || argument.judgment.reasoning}
-                  </Text>
+                    <View style={[styles.audioButton, { backgroundColor: `${winnerColors.main}20` }]}>
+                      <Ionicons
+                        name={isPlaying ? 'pause' : 'play'}
+                        size={18}
+                        color={winnerColors.main}
+                      />
+                    </View>
+                    <Text style={styles.audioText}>
+                      {isPlaying ? 'Playing...' : 'Listen to verdict'}
+                    </Text>
+                  </Pressable>
+                )}
+              </Animated.View>
+
+              {/* Reasoning */}
+              <Animated.View
+                style={[
+                  styles.reasoningSection,
+                  { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+                ]}
+              >
+                <Pressable
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setIsReasoningExpanded(!isReasoningExpanded);
+                  }}
+                >
+                  <View style={styles.reasoningHeader}>
+                    <Text style={styles.reasoningLabel}>THE REASONING</Text>
+                    <Ionicons
+                      name={isReasoningExpanded ? 'chevron-up' : 'chevron-down'}
+                      size={20}
+                      color={colors.textMuted}
+                    />
+                  </View>
+
+                  <View style={styles.reasoningCard}>
+                    <Text
+                      style={styles.reasoningText}
+                      numberOfLines={isReasoningExpanded ? undefined : 4}
+                    >
+                      {argument.judgment.fullResponse || argument.judgment.reasoning}
+                    </Text>
+
+                    {!isReasoningExpanded && (
+                      <LinearGradient
+                        colors={['transparent', colors.bgCard]}
+                        style={styles.reasoningFade}
+                      />
+                    )}
+                  </View>
+
                   {!isReasoningExpanded && (
-                    <Text style={styles.expandHint}>Tap to expand</Text>
+                    <Text style={styles.expandHint}>Tap to read full reasoning</Text>
                   )}
-                </View>
-              </TouchableOpacity>
-            </View>
+                </Pressable>
+              </Animated.View>
 
-            {/* Research Sources */}
-            {argument.judgment.researchPerformed && argument.judgment.sources && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Sources Consulted</Text>
-                {argument.judgment.sources.map((source, index) => (
-                  <Text key={index} style={styles.sourceText}>
-                    • {source}
-                  </Text>
-                ))}
+              {/* Branding */}
+              <View style={styles.branding}>
+                <View style={styles.brandingLine} />
+                <Text style={styles.brandingText}>Settled with ThirdParty</Text>
+                <View style={styles.brandingLine} />
               </View>
-            )}
-
-            {/* Branding for screenshot */}
-            <View style={styles.branding}>
-              <Text style={styles.brandingText}>Settled with Settler</Text>
             </View>
-          </View>
-        </ViewShot>
+          </ViewShot>
 
-        {/* Audio Playback - outside capture area */}
-        {argument.judgment.audioUrl && (
-          <TouchableOpacity style={styles.playButton} onPress={playAudio}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              {isPlaying ? (
-                <Ionicons name="pause" size={20} color={colors.textPrimary} />
-              ) : (
-                <Ionicons name="play" size={20} color={colors.textPrimary} />
-              )}
-              <Text style={styles.playButtonText}>
-                {isPlaying ? 'Pause' : 'Play Verdict'}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        )}
+          {/* Actions */}
+          <Animated.View style={[styles.actions, { opacity: fadeAnim }]}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={handleScreenshot}
+              activeOpacity={0.7}
+            >
+              <Feather name="camera" size={20} color={colors.textPrimary} />
+            </TouchableOpacity>
 
-        {/* Actions */}
-        <View style={styles.actions}>
-          <TouchableOpacity style={styles.screenshotButton} onPress={handleScreenshot}>
-            <Feather name="camera" size={20} color={colors.textPrimary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={handleShare}
+              activeOpacity={0.7}
+            >
               <Feather name="share" size={20} color={colors.textPrimary} />
-              <Text style={styles.shareButtonText}>Share</Text>
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
 
-          <TouchableOpacity style={styles.doneButton} onPress={handleDone}>
-            <Text style={styles.doneButtonText}>Done</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={handleDone}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.primaryButtonText}>Done</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -381,154 +502,219 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bgPrimary,
   },
+  safeArea: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: spacing.screenPadding,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xxl,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: spacing.lg,
+    right: spacing.screenPadding,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.bgTertiary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: spacing.md,
   },
   loadingText: {
     ...typography.body,
     color: colors.textSecondary,
+    marginTop: spacing.md,
   },
   errorText: {
-    ...typography.body,
-    color: colors.error,
-    marginBottom: spacing.lg,
+    ...typography.h3,
+    color: colors.textSecondary,
+    marginTop: spacing.md,
   },
-  content: {
-    padding: spacing.lg,
+
+  // Spotlight
+  spotlightGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 500,
+    zIndex: 0,
   },
+  spotlightGradient: {
+    flex: 1,
+    borderBottomLeftRadius: 300,
+    borderBottomRightRadius: 300,
+  },
+
+  // Capture area
+  captureArea: {
+    backgroundColor: colors.bgPrimary,
+    paddingVertical: spacing.lg,
+  },
+
+  // Header
   header: {
     alignItems: 'center',
     marginBottom: spacing.xl,
+    marginTop: spacing.xl,
   },
-  title: {
-    ...typography.h1,
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
+  overline: {
+    ...typography.overline,
+    color: colors.primary,
+    marginBottom: spacing.sm,
   },
-  participants: {
+  matchup: {
     ...typography.body,
     color: colors.textSecondary,
   },
+
+  // Winner Card
   winnerCard: {
     backgroundColor: colors.bgCard,
-    borderRadius: borderRadius.xl,
+    borderRadius: borderRadius.xxl,
     padding: spacing.xl,
     alignItems: 'center',
-    marginBottom: spacing.lg,
-    borderWidth: 3,
+    marginBottom: spacing.xl,
+    borderWidth: 2,
+    ...shadows.lg,
   },
-  winnerEmoji: {
-    fontSize: 48,
-    marginBottom: spacing.sm,
+  trophyContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.md,
   },
   winnerLabel: {
-    ...typography.caption,
+    ...typography.overline,
     color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 2,
     marginBottom: spacing.xs,
   },
   winnerName: {
-    ...typography.h1,
+    ...typography.hero,
+    fontSize: 36,
+    textAlign: 'center',
   },
-  playButton: {
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
+  audioControl: {
+    flexDirection: 'row',
     alignItems: 'center',
+    marginTop: spacing.lg,
+    gap: spacing.sm,
+  },
+  audioButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  audioText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+
+  // Reasoning
+  reasoningSection: {
     marginBottom: spacing.lg,
   },
-  playButtonText: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-  },
-  section: {
-    marginBottom: spacing.lg,
-  },
-  sectionHeader: {
+  reasoningHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
-  sectionTitle: {
-    ...typography.caption,
+  reasoningLabel: {
+    ...typography.overline,
     color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
   },
   reasoningCard: {
     backgroundColor: colors.bgCard,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
+    borderRadius: borderRadius.card,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    position: 'relative',
+    overflow: 'hidden',
   },
   reasoningText: {
     ...typography.body,
     color: colors.textPrimary,
-    lineHeight: 24,
+    lineHeight: 26,
+  },
+  reasoningFade: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 60,
   },
   expandHint: {
     ...typography.caption,
     color: colors.textMuted,
+    textAlign: 'center',
     marginTop: spacing.sm,
-    fontStyle: 'italic',
   },
-  sourceText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.lg,
-  },
-  shareButton: {
-    flex: 1,
-    backgroundColor: colors.bgTertiary,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    alignItems: 'center',
-  },
-  shareButtonText: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-  },
-  doneButton: {
-    flex: 1,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    alignItems: 'center',
-  },
-  doneButtonText: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-  },
-  captureArea: {
-    backgroundColor: colors.bgPrimary,
-    padding: spacing.md,
-  },
+
+  // Branding
   branding: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: spacing.lg,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    gap: spacing.md,
+  },
+  brandingLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+    maxWidth: 60,
   },
   brandingText: {
     ...typography.caption,
     color: colors.textMuted,
     fontStyle: 'italic',
   },
-  screenshotButton: {
-    backgroundColor: colors.bgTertiary,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
+
+  // Actions
+  actions: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.lg,
+  },
+  actionButton: {
+    width: 52,
+    height: 52,
+    borderRadius: borderRadius.lg,
+    backgroundColor: colors.bgTertiary,
     justifyContent: 'center',
-    width: 50,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  primaryButton: {
+    flex: 1,
+    height: 52,
+    borderRadius: borderRadius.button,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadows.glow,
+  },
+  primaryButtonText: {
+    ...typography.button,
+    color: colors.textInverse,
   },
 });
