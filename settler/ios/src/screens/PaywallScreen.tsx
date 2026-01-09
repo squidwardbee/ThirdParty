@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,59 +8,58 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Image,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, typography, spacing, borderRadius } from '../lib/theme';
 import {
-  getOfferings,
   purchasePackage,
   restorePurchases,
-  getManagementUrl,
 } from '../lib/purchases';
 import { RootStackParamList } from '../navigation';
+import { Feather, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import leftLaurel from '../../assets/left_laurel.png';
+import rightLaurel from '../../assets/right_laurel.png';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Paywall'>;
 
 const PREMIUM_FEATURES = [
-  { icon: '⚖️', title: 'Unlimited Arguments', description: 'No daily limits on settling disputes' },
-  { icon: '🔬', title: 'AI Research', description: 'Fact-checking with web search' },
-  { icon: '🎙️', title: 'Premium Voices', description: 'High-quality AI narrator voices' },
-  { icon: '📊', title: 'Detailed Analysis', description: 'In-depth reasoning and sources' },
+  {
+    icon: <Feather name="check-circle" size={28} color={colors.primary} />,
+    title: 'Unlimited Arguments',
+    description: '24/7 access to an impartial mediator',
+  },
+  {
+    icon: <Feather name="search" size={28} color={colors.primary} />,
+    title: 'AI Research',
+    description: 'Fact-checking with web search',
+  },
+  {
+    icon: <MaterialCommunityIcons name="microphone" size={28} color={colors.primary} />,
+    title: 'Premium Voices',
+    description: 'High-quality AI narrator voices',
+  },
+  {
+    icon: <FontAwesome5 name="chart-bar" size={24} color={colors.primary} />,
+    title: 'Detailed Analysis',
+    description: 'In-depth reasoning and sources',
+  },
 ];
 
 export default function PaywallScreen({ navigation }: Props) {
-  const [packages, setPackages] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [selectedPlan, setSelectedPlan] = useState<'MONTHLY' | 'ANNUAL'>('ANNUAL');
   const [purchasing, setPurchasing] = useState(false);
-  const [selectedPackage, setSelectedPackage] = useState<any | null>(null);
-
-  useEffect(() => {
-    loadOfferings();
-  }, []);
-
-  const loadOfferings = async () => {
-    try {
-      const offerings = await getOfferings();
-      setPackages(offerings);
-      // Select annual by default (usually better value)
-      const annual = offerings.find((p) => p.packageType === 'ANNUAL');
-      setSelectedPackage(annual || offerings[0] || null);
-    } catch (error) {
-      console.error('Failed to load offerings:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handlePurchase = async () => {
-    if (!selectedPackage) return;
-
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setPurchasing(true);
     try {
-      const success = await purchasePackage(selectedPackage);
+      const success = await purchasePackage(selectedPlan);
       if (success) {
-        Alert.alert('Success!', 'Welcome to Settler Premium!', [
+        Alert.alert('Success!', 'Welcome to ThirdParty Premium!', [
           { text: 'OK', onPress: () => navigation.goBack() },
         ]);
       }
@@ -91,60 +90,28 @@ export default function PaywallScreen({ navigation }: Props) {
     }
   };
 
-  const formatPrice = (pkg: any): string => {
-    const product = pkg.product;
-    return product.priceString;
-  };
-
-  const formatPeriod = (pkg: any): string => {
-    switch (pkg.packageType) {
-      case 'WEEKLY':
-        return 'per week';
-      case 'MONTHLY':
-        return 'per month';
-      case 'ANNUAL':
-        return 'per year';
-      default:
-        return '';
-    }
-  };
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={() => navigation.goBack()}
-          >
+          <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()}>
             <Text style={styles.closeButtonText}>X</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Settler Premium</Text>
-          <Text style={styles.subtitle}>Settle arguments like a pro</Text>
+
+          <View style={styles.laurelWrapper}>
+            <Image source={leftLaurel} style={styles.laurelIcon} />
+            <View style={styles.textGroup}>
+              <Text style={styles.title}>ThirdParty Premium</Text>
+              <Text style={styles.subtitle}>Resolve conflicts like a pro</Text>
+            </View>
+            <Image source={rightLaurel} style={styles.laurelIcon} />
+          </View>
         </View>
 
-        {/* Free Trial Banner */}
-        <View style={styles.trialBanner}>
-          <Text style={styles.trialText}>Start your 3-day free trial</Text>
-          <Text style={styles.trialSubtext}>Cancel anytime before trial ends</Text>
-        </View>
-
-        {/* Features */}
         <View style={styles.features}>
           {PREMIUM_FEATURES.map((feature, index) => (
             <View key={index} style={styles.featureRow}>
-              <Text style={styles.featureIcon}>{feature.icon}</Text>
+              <View style={styles.featureIconWrapper}>{feature.icon}</View>
               <View style={styles.featureContent}>
                 <Text style={styles.featureTitle}>{feature.title}</Text>
                 <Text style={styles.featureDescription}>{feature.description}</Text>
@@ -153,54 +120,66 @@ export default function PaywallScreen({ navigation }: Props) {
           ))}
         </View>
 
-        {/* Package Selection */}
-        <View style={styles.packages}>
-          {packages.map((pkg) => (
-            <TouchableOpacity
-              key={pkg.identifier}
-              style={[
-                styles.packageCard,
-                selectedPackage?.identifier === pkg.identifier && styles.packageSelected,
-              ]}
-              onPress={() => setSelectedPackage(pkg)}
-            >
-              <View style={styles.packageHeader}>
-                <Text style={styles.packageTitle}>
-                  {pkg.packageType === 'ANNUAL' ? 'Annual' : 'Monthly'}
-                </Text>
-                {pkg.packageType === 'ANNUAL' && (
-                  <View style={styles.saveBadge}>
-                    <Text style={styles.saveBadgeText}>Best Value</Text>
-                  </View>
-                )}
+        <View style={styles.planStack}>
+          <TouchableOpacity
+            style={[
+              styles.planRow,
+              selectedPlan === 'MONTHLY' && styles.planSelected,
+            ]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setSelectedPlan('MONTHLY');
+            }}
+          >
+            <View>
+              <Text style={styles.planTitle}>Monthly</Text>
+              <Text style={styles.planSub}>$9.99 / month</Text>
+            </View>
+            <Text style={styles.planPriceRight}>$9.99</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.planRow,
+              selectedPlan === 'ANNUAL' && styles.planSelected,
+            ]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setSelectedPlan('ANNUAL');
+            }}
+          >
+            <View>
+              <View style={styles.annualTitleRow}>
+                <Text style={styles.planTitle}>Annual</Text>
+                <View style={styles.bestValueBadge}>
+                  <Text style={styles.bestValueText}>Best Value</Text>
+                </View>
               </View>
-              <Text style={styles.packagePrice}>{formatPrice(pkg)}</Text>
-              <Text style={styles.packagePeriod}>{formatPeriod(pkg)}</Text>
-            </TouchableOpacity>
-          ))}
+              <View style={styles.priceRow}>
+                <Text style={styles.strikePrice}>$119.99</Text>
+                <Text style={styles.discountText}>50% off</Text>
+              </View>
+            </View>
+            <Text style={styles.planPriceRight}>$59.99</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Purchase Button */}
         <TouchableOpacity
           style={[styles.purchaseButton, purchasing && styles.purchaseButtonDisabled]}
           onPress={handlePurchase}
-          disabled={purchasing || !selectedPackage}
+          disabled={purchasing}
         >
           {purchasing ? (
             <ActivityIndicator color={colors.textPrimary} />
           ) : (
-            <Text style={styles.purchaseButtonText}>
-              Start Free Trial
-            </Text>
+            <Text style={styles.purchaseButtonText}>Start Your Free 3-Day Trial</Text>
           )}
         </TouchableOpacity>
 
-        {/* Restore */}
         <TouchableOpacity style={styles.restoreButton} onPress={handleRestore}>
           <Text style={styles.restoreButtonText}>Restore Purchases</Text>
         </TouchableOpacity>
 
-        {/* Legal */}
         <Text style={styles.legalText}>
           Payment will be charged to your Apple ID account at confirmation of purchase.
           Subscription automatically renews unless it is canceled at least 24 hours
@@ -227,11 +206,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bgPrimary,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   content: {
     padding: spacing.lg,
   },
@@ -250,42 +224,44 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 20,
   },
+  laurelWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xl * 2,
+  },
+  laurelIcon: {
+    width: 80,
+    height: 80,
+    marginHorizontal: -18,
+  },
+  textGroup: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+  },
   title: {
-    ...typography.h1,
+    fontSize: 29,
+    fontWeight: 'bold',
     color: colors.primary,
     marginBottom: spacing.xs,
   },
   subtitle: {
-    ...typography.body,
+    fontSize: 18,
     color: colors.textSecondary,
   },
-  trialBanner: {
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    alignItems: 'center',
-    marginBottom: spacing.xl,
-  },
-  trialText: {
-    ...typography.h3,
-    color: colors.textPrimary,
-  },
-  trialSubtext: {
-    ...typography.caption,
-    color: colors.textPrimary,
-    opacity: 0.8,
-  },
   features: {
-    marginBottom: spacing.xl,
+    alignItems: 'center',
   },
   featureRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: spacing.md,
+    width: '80%',
   },
-  featureIcon: {
-    fontSize: 28,
+  featureIconWrapper: {
+    width: 28,
     marginRight: spacing.md,
+    alignItems: 'center',
   },
   featureContent: {
     flex: 1,
@@ -298,50 +274,65 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
   },
-  packages: {
-    flexDirection: 'row',
-    gap: spacing.md,
+  planStack: {
+    marginTop: spacing.lg,
     marginBottom: spacing.lg,
+    gap: spacing.sm,
   },
-  packageCard: {
-    flex: 1,
+  planRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     backgroundColor: colors.bgCard,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  packageSelected: {
+  planSelected: {
     borderColor: colors.primary,
   },
-  packageHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  packageTitle: {
+  planTitle: {
     ...typography.bodyMedium,
     color: colors.textPrimary,
   },
-  saveBadge: {
-    backgroundColor: colors.success,
+  planSub: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  planPriceRight: {
+    ...typography.h3,
+    color: colors.textPrimary,
+  },
+  annualTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  bestValueBadge: {
+    backgroundColor: colors.primary,
     borderRadius: borderRadius.sm,
     paddingHorizontal: spacing.xs,
     paddingVertical: 2,
   },
-  saveBadgeText: {
+  bestValueText: {
     ...typography.caption,
     color: colors.textPrimary,
     fontSize: 10,
   },
-  packagePrice: {
-    ...typography.h2,
-    color: colors.textPrimary,
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
-  packagePeriod: {
+  strikePrice: {
     ...typography.caption,
-    color: colors.textSecondary,
+    color: colors.textMuted,
+    textDecorationLine: 'line-through',
+  },
+  discountText: {
+    ...typography.caption,
+    color: colors.primary,
   },
   purchaseButton: {
     backgroundColor: colors.primary,
@@ -372,8 +363,8 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
     marginBottom: spacing.md,
-    fontSize: 11,
-    lineHeight: 16,
+    fontSize: 9,
+    lineHeight: 10,
   },
   legalLinks: {
     flexDirection: 'row',
