@@ -14,6 +14,7 @@ import { Audio } from 'expo-av';
 import { colors, typography, spacing, borderRadius } from '../lib/theme';
 import { api } from '../lib/api';
 import { RootStackParamList } from '../navigation';
+import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ArgumentDetail'>;
 
@@ -59,6 +60,16 @@ export default function ArgumentDetailScreen({ navigation, route }: Props) {
     };
   }, [argumentId]);
 
+  useEffect(() => {
+    Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      staysActiveInBackground: false,
+      playsInSilentModeIOS: true, 
+      shouldDuckAndroid: true,
+      playThroughEarpieceAndroid: false, 
+    }).catch((e) => console.warn("Audio mode setup failed", e));
+  }, []);
+
   const loadArgument = async () => {
     try {
       const data = await api.getArgument(argumentId);
@@ -73,6 +84,8 @@ export default function ArgumentDetailScreen({ navigation, route }: Props) {
 
   const playAudio = async () => {
     if (!argument?.judgment?.audioUrl) return;
+    console.log("audioUrl:", argument?.judgment?.audioUrl);
+
 
     try {
       if (soundRef.current) {
@@ -165,7 +178,6 @@ export default function ArgumentDetailScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backText}>← Back</Text>
@@ -176,18 +188,20 @@ export default function ArgumentDetailScreen({ navigation, route }: Props) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Title */}
         <View style={styles.titleSection}>
           <Text style={styles.title}>
             {argument.personAName} vs {argument.personBName}
           </Text>
           <Text style={styles.meta}>
             {new Date(argument.createdAt).toLocaleDateString()} •{' '}
-            {argument.mode === 'live' ? '🎙️ Live' : '🔄 Turn-based'}
+            {argument.mode === 'live' ? (
+              <Ionicons name="mic-outline" size={14} color={colors.textMuted} />
+            ) : (
+              <Ionicons name="repeat-outline" size={14} color={colors.textMuted} />
+            )}
           </Text>
         </View>
 
-        {/* Winner */}
         {argument.judgment && (
           <View style={[styles.winnerCard, { borderColor: winnerColor }]}>
             <Text style={styles.winnerLabel}>Winner</Text>
@@ -197,18 +211,24 @@ export default function ArgumentDetailScreen({ navigation, route }: Props) {
 
             {argument.judgment.audioUrl && (
               <TouchableOpacity style={styles.playButton} onPress={playAudio}>
-                <Text style={styles.playButtonText}>
-                  {isPlaying ? '⏸️ Pause' : '▶️ Play'}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  {isPlaying ? (
+                    <Ionicons name="pause" size={18} color={colors.textPrimary} />
+                  ) : (
+                    <Ionicons name="play" size={18} color={colors.textPrimary} />
+                  )}
+                  <Text style={styles.playButtonText}>
+                    {isPlaying ? 'Pause' : 'Play'}
+                  </Text>
+                </View>
               </TouchableOpacity>
             )}
           </View>
         )}
 
-        {/* Turns */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Arguments</Text>
-          {argument.turns.map((turn, index) => (
+          {argument.turns.map((turn) => (
             <View
               key={turn.id}
               style={[
@@ -229,7 +249,6 @@ export default function ArgumentDetailScreen({ navigation, route }: Props) {
           ))}
         </View>
 
-        {/* Judgment */}
         {argument.judgment && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Judgment</Text>
@@ -241,9 +260,11 @@ export default function ArgumentDetailScreen({ navigation, route }: Props) {
           </View>
         )}
 
-        {/* Actions */}
         <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-          <Text style={styles.shareButtonText}>📤 Share Result</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Feather name="share" size={18} color={colors.textPrimary} />
+            <Text style={styles.shareButtonText}>Share Result</Text>
+          </View>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
