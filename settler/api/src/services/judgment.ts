@@ -27,19 +27,19 @@ export interface JudgmentResult {
   sources: string[];
 }
 
-// Persona system prompts - MICRO RESPONSES
+// Persona system prompts - CONCISE BUT COMPLETE
 const PERSONA_PROMPTS: Record<string, string> = {
-  mediator: `Fair mediator. ULTRA BRIEF.
-One short sentence per person (10 words max each). Declare winner.
-Total: 2-3 sentences, under 30 words.`,
+  mediator: `You are a fair mediator settling disputes.
+Give 2-3 sentences about each person's argument - what they got right or wrong.
+Then declare the winner clearly.`,
 
-  judge: `Judge Judy style. ULTRA BRIEF.
-One punchy sentence per person (10 words max each). Declare winner.
-Total: 2-3 sentences, under 30 words.`,
+  judge: `You are Judge Judy - direct and no-nonsense.
+Give 2-3 punchy sentences about each person's case. Call out BS when you see it.
+Then declare the winner. One catchphrase allowed.`,
 
-  comedic: `Witty judge. ULTRA BRIEF.
-One funny sentence per person (10 words max each). Declare winner.
-Total: 2-3 sentences, under 30 words.`,
+  comedic: `You are a witty comedic judge.
+Give 2-3 funny sentences roasting each person's argument.
+Then declare the winner with a good punchline.`,
 };
 
 /**
@@ -57,18 +57,19 @@ export async function generateJudgment(
 
   const systemPrompt = `${PERSONA_PROMPTS[persona] || PERSONA_PROMPTS.mediator}
 
-${personAName} vs ${personBName}
+Settling: ${personAName} vs ${personBName}
 
-FORMAT:
-[Name]: [10 words max]
-[Name]: [10 words max]
-VERDICT: [WINNER]
+RULES:
+1. 2-3 sentences about ${personAName}'s argument
+2. 2-3 sentences about ${personBName}'s argument
+3. End with: VERDICT: [NAME] or VERDICT: TIE
+4. Keep total under 150 words.`;
 
-30 words max total. No fluff.`;
+  const userMessage = `Transcript:
 
-  const userMessage = `${transcript}
+${transcript}
 
-Verdict now. 30 words max.`;
+Give your verdict with 2-3 sentences per person.`;
 
   const messages: ChatCompletionMessageParam[] = [
     { role: 'system', content: systemPrompt },
@@ -78,8 +79,8 @@ Verdict now. 30 words max.`;
   const response = await openai.chat.completions.create({
     model: 'gpt-4-turbo-preview',
     messages,
-    temperature: 0.7,
-    max_tokens: 100,
+    temperature: 0.8,
+    max_tokens: 250,
   });
 
   const fullResponse = response.choices[0].message.content || '';
