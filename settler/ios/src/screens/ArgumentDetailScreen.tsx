@@ -7,7 +7,6 @@ import {
   ScrollView,
   Share,
   Alert,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -16,7 +15,7 @@ import * as Haptics from 'expo-haptics';
 import { colors, typography, spacing, borderRadius } from '../lib/theme';
 import { api } from '../lib/api';
 import { RootStackParamList } from '../navigation';
-import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ArgumentDetail'>;
 
@@ -49,12 +48,13 @@ export default function ArgumentDetailScreen({ navigation, route }: Props) {
   const [argument, setArgument] = useState<ArgumentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [expandedTurns, setExpandedTurns] = useState<Record<string, boolean>>({});
+  const [judgmentExpanded, setJudgmentExpanded] = useState(false);
 
   const soundRef = useRef<Audio.Sound | null>(null);
 
   useEffect(() => {
     loadArgument();
-
     return () => {
       if (soundRef.current) {
         soundRef.current.unloadAsync();
@@ -69,15 +69,14 @@ export default function ArgumentDetailScreen({ navigation, route }: Props) {
       playsInSilentModeIOS: true,
       shouldDuckAndroid: true,
       playThroughEarpieceAndroid: false,
-    }).catch((e) => console.warn("Audio mode setup failed", e));
+    });
   }, []);
 
   const loadArgument = async () => {
     try {
       const data = await api.getArgument(argumentId);
       setArgument(data as ArgumentData);
-    } catch (error) {
-      console.error('Failed to load argument:', error);
+    } catch {
       Alert.alert('Error', 'Failed to load argument details');
     } finally {
       setLoading(false);
@@ -88,45 +87,37 @@ export default function ArgumentDetailScreen({ navigation, route }: Props) {
     if (!argument?.judgment?.audioUrl) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    try {
-      if (soundRef.current) {
-        const status = await soundRef.current.getStatusAsync();
-        if (status.isLoaded && status.isPlaying) {
-          await soundRef.current.pauseAsync();
-          setIsPlaying(false);
-          return;
-        }
+    if (soundRef.current) {
+      const status = await soundRef.current.getStatusAsync();
+      if (status.isLoaded && status.isPlaying) {
+        await soundRef.current.pauseAsync();
+        setIsPlaying(false);
+        return;
       }
-
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: argument.judgment.audioUrl },
-        { shouldPlay: true }
-      );
-
-      soundRef.current = sound;
-      setIsPlaying(true);
-
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          setIsPlaying(false);
-        }
-      });
-    } catch (error) {
-      console.error('Failed to play audio:', error);
     }
+
+    const { sound } = await Audio.Sound.createAsync(
+      { uri: argument.judgment.audioUrl },
+      { shouldPlay: true }
+    );
+
+    soundRef.current = sound;
+    setIsPlaying(true);
+
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if (status.isLoaded && status.didJustFinish) {
+        setIsPlaying(false);
+      }
+    });
   };
 
   const handleShare = async () => {
     if (!argument?.judgment) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    try {
-      await Share.share({
-        message: `Settler Judgment:\n\n${argument.personAName} vs ${argument.personBName}\n\nWinner: ${argument.judgment.winnerName}\n\n${argument.judgment.reasoning}`,
-      });
-    } catch (error) {
-      console.error('Share error:', error);
-    }
+    await Share.share({
+      message: `Settler Judgment:\n\n${argument.personAName} vs ${argument.personBName}\n\nWinner: ${argument.judgment.winnerName}\n\n${argument.judgment.reasoning}`,
+    });
   };
 
   const handleDelete = () => {
@@ -141,33 +132,21 @@ export default function ArgumentDetailScreen({ navigation, route }: Props) {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            try {
-              await api.deleteArgument(argumentId);
-              navigation.goBack();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete argument');
-            }
+            await api.deleteArgument(argumentId);
+            navigation.goBack();
           },
         },
       ]
     );
   };
 
-  if (loading) {
+  if (loading || !argument) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (!argument) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.errorText}>Argument not found</Text>
+          <Text style={styles.loadingText}>
+            {loading ? 'Loading...' : 'Argument not found'}
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -197,12 +176,7 @@ export default function ArgumentDetailScreen({ navigation, route }: Props) {
             {argument.personAName} vs {argument.personBName}
           </Text>
           <Text style={styles.meta}>
-            {new Date(argument.createdAt).toLocaleDateString()} •{' '}
-            {argument.mode === 'live' ? (
-              <Ionicons name="mic-outline" size={14} color={colors.textMuted} />
-            ) : (
-              <Ionicons name="repeat-outline" size={14} color={colors.textMuted} />
-            )}
+            {new Date(argument.createdAt).toLocaleDateString()}
           </Text>
         </View>
 
@@ -216,11 +190,11 @@ export default function ArgumentDetailScreen({ navigation, route }: Props) {
             {argument.judgment.audioUrl && (
               <TouchableOpacity style={styles.playButton} onPress={playAudio}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  {isPlaying ? (
-                    <Ionicons name="pause" size={18} color={colors.textPrimary} />
-                  ) : (
-                    <Ionicons name="play" size={18} color={colors.textPrimary} />
-                  )}
+                  <Ionicons
+                    name={isPlaying ? 'pause' : 'play'}
+                    size={18}
+                    color={colors.textPrimary}
+                  />
                   <Text style={styles.playButtonText}>
                     {isPlaying ? 'Pause' : 'Play'}
                   </Text>
@@ -232,34 +206,67 @@ export default function ArgumentDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Arguments</Text>
-          {argument.turns.map((turn) => (
-            <View
-              key={turn.id}
-              style={[
-                styles.turnCard,
-                {
-                  borderLeftColor:
-                    turn.speaker === 'person_a' ? colors.personA : colors.personB,
-                },
-              ]}
-            >
-              <Text style={styles.turnSpeaker}>
-                {turn.speaker === 'person_a'
-                  ? argument.personAName
-                  : argument.personBName}
-              </Text>
-              <Text style={styles.turnText}>{turn.transcription}</Text>
-            </View>
-          ))}
+          {argument.turns.map((turn) => {
+            const expanded = expandedTurns[turn.id];
+            return (
+              <View
+                key={turn.id}
+                style={[
+                  styles.turnCard,
+                  {
+                    borderLeftColor:
+                      turn.speaker === 'person_a'
+                        ? colors.personA
+                        : colors.personB,
+                  },
+                ]}
+              >
+                <Text style={styles.turnSpeaker}>
+                  {turn.speaker === 'person_a'
+                    ? argument.personAName
+                    : argument.personBName}
+                </Text>
+                <Text
+                  style={styles.turnText}
+                  numberOfLines={expanded ? undefined : 4}
+                >
+                  {turn.transcription}
+                </Text>
+                <TouchableOpacity
+                  onPress={() =>
+                    setExpandedTurns((p) => ({
+                      ...p,
+                      [turn.id]: !expanded,
+                    }))
+                  }
+                >
+                  <Text style={styles.readMore}>
+                    {expanded ? 'Read less' : 'Read more'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            );
+          })}
         </View>
 
         {argument.judgment && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Judgment</Text>
             <View style={styles.judgmentCard}>
-              <Text style={styles.judgmentText}>
-                {argument.judgment.fullResponse || argument.judgment.reasoning}
+              <Text
+                style={styles.judgmentText}
+                numberOfLines={judgmentExpanded ? undefined : 6}
+              >
+                {argument.judgment.fullResponse ||
+                  argument.judgment.reasoning}
               </Text>
+              <TouchableOpacity
+                onPress={() => setJudgmentExpanded((p) => !p)}
+              >
+                <Text style={styles.readMore}>
+                  {judgmentExpanded ? 'Read less' : 'Read more'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -276,54 +283,22 @@ export default function ArgumentDetailScreen({ navigation, route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bgPrimary,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
-  errorText: {
-    ...typography.body,
-    color: colors.error,
-  },
+  container: { flex: 1, backgroundColor: colors.bgPrimary },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { ...typography.body, color: colors.textSecondary },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     padding: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  backText: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
-  deleteText: {
-    ...typography.body,
-    color: colors.error,
-  },
-  content: {
-    padding: spacing.lg,
-  },
-  titleSection: {
-    marginBottom: spacing.lg,
-  },
-  title: {
-    ...typography.h2,
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
-  },
-  meta: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
+  backText: { ...typography.body, color: colors.textSecondary },
+  deleteText: { ...typography.body, color: colors.error },
+  content: { padding: spacing.lg },
+  titleSection: { marginBottom: spacing.lg },
+  title: { ...typography.h2, color: colors.textPrimary },
+  meta: { ...typography.caption, color: colors.textMuted },
   winnerCard: {
     backgroundColor: colors.bgCard,
     borderRadius: borderRadius.lg,
@@ -332,35 +307,19 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     borderWidth: 2,
   },
-  winnerLabel: {
-    ...typography.caption,
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: spacing.xs,
-  },
-  winnerName: {
-    ...typography.h2,
-    marginBottom: spacing.md,
-  },
+  winnerLabel: { ...typography.caption, color: colors.textMuted },
+  winnerName: { ...typography.h2, marginBottom: spacing.md },
   playButton: {
     backgroundColor: colors.primary,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
   },
-  playButtonText: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-  },
-  section: {
-    marginBottom: spacing.lg,
-  },
+  playButtonText: { ...typography.bodyMedium, color: colors.textPrimary },
+  section: { marginBottom: spacing.lg },
   sectionTitle: {
     ...typography.caption,
     color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
     marginBottom: spacing.sm,
   },
   turnCard: {
@@ -370,24 +329,18 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     borderLeftWidth: 4,
   },
-  turnSpeaker: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-  },
-  turnText: {
-    ...typography.body,
-    color: colors.textPrimary,
-  },
+  turnSpeaker: { ...typography.caption, color: colors.textSecondary },
+  turnText: { ...typography.body, color: colors.textPrimary },
   judgmentCard: {
     backgroundColor: colors.bgCard,
     borderRadius: borderRadius.md,
     padding: spacing.md,
   },
-  judgmentText: {
-    ...typography.body,
-    color: colors.textPrimary,
-    lineHeight: 24,
+  judgmentText: { ...typography.body, color: colors.textPrimary },
+  readMore: {
+    ...typography.caption,
+    color: colors.primary,
+    marginTop: spacing.xs,
   },
   shareButton: {
     backgroundColor: colors.bgTertiary,
@@ -396,8 +349,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: spacing.md,
   },
-  shareButtonText: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-  },
+  shareButtonText: { ...typography.bodyMedium, color: colors.textPrimary },
 });
