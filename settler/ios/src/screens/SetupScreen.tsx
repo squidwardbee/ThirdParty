@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   section: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.sm,
   },
   sectionTitle: {
     ...typography.caption,
@@ -272,7 +272,6 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     padding: spacing.md,
     alignItems: 'center',
-    marginTop: spacing.md,
   },
   startButtonDisabled: {
     opacity: 0.5,
