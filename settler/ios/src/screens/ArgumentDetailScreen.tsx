@@ -7,10 +7,12 @@ import {
   ScrollView,
   Share,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Audio } from 'expo-av';
+import * as Haptics from 'expo-haptics';
 import { colors, typography, spacing, borderRadius } from '../lib/theme';
 import { api } from '../lib/api';
 import { RootStackParamList } from '../navigation';
@@ -64,9 +66,9 @@ export default function ArgumentDetailScreen({ navigation, route }: Props) {
     Audio.setAudioModeAsync({
       allowsRecordingIOS: false,
       staysActiveInBackground: false,
-      playsInSilentModeIOS: true, 
+      playsInSilentModeIOS: true,
       shouldDuckAndroid: true,
-      playThroughEarpieceAndroid: false, 
+      playThroughEarpieceAndroid: false,
     }).catch((e) => console.warn("Audio mode setup failed", e));
   }, []);
 
@@ -84,8 +86,7 @@ export default function ArgumentDetailScreen({ navigation, route }: Props) {
 
   const playAudio = async () => {
     if (!argument?.judgment?.audioUrl) return;
-    console.log("audioUrl:", argument?.judgment?.audioUrl);
-
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
       if (soundRef.current) {
@@ -117,6 +118,7 @@ export default function ArgumentDetailScreen({ navigation, route }: Props) {
 
   const handleShare = async () => {
     if (!argument?.judgment) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
       await Share.share({
@@ -128,6 +130,8 @@ export default function ArgumentDetailScreen({ navigation, route }: Props) {
   };
 
   const handleDelete = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
     Alert.alert(
       'Delete Argument',
       'Are you sure you want to delete this argument? This cannot be undone.',
