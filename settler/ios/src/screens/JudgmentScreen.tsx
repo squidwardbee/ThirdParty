@@ -24,6 +24,8 @@ import { useAppStore } from '../lib/store';
 import { RootStackParamList } from '../navigation';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
+import { Image } from 'react-native';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Judgment'>;
 
@@ -49,6 +51,7 @@ export default function JudgmentScreen({ navigation, route }: Props) {
   const [loading, setLoading] = useState(true);
   const [isReasoningExpanded, setIsReasoningExpanded] = useState(false);
   const [hasAutoPlayed, setHasAutoPlayed] = useState(false);
+  const [selfieUri, setSelfieUri] = useState<string | null>(null);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -69,6 +72,18 @@ export default function JudgmentScreen({ navigation, route }: Props) {
       }
     };
   }, [argumentId]);
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Camera Permission Required',
+          'We need access to your camera to take a selfie.'
+        );
+      }
+    })();
+  }, []);
 
   // Entrance animation
   useEffect(() => {
@@ -282,6 +297,27 @@ export default function JudgmentScreen({ navigation, route }: Props) {
     navigation.popToTop();
   };
 
+  const handleTakeSelfie = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+        cameraType: ImagePicker.CameraType.front,
+      });
+
+      if (!result.canceled) {
+        setSelfieUri(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Camera error:', error);
+      Alert.alert('Error', 'Failed to open camera');
+    }
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -463,13 +499,20 @@ export default function JudgmentScreen({ navigation, route }: Props) {
                 <View style={styles.brandingLine} />
               </View>
             </View>
+
+            {selfieUri && (
+              <Image
+                source={{ uri: selfieUri }}
+                style={styles.selfieOverlay}
+              />
+            )}
           </ViewShot>
 
           {/* Actions */}
           <Animated.View style={[styles.actions, { opacity: fadeAnim }]}>
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={handleScreenshot}
+              onPress={handleTakeSelfie}
               activeOpacity={0.7}
             >
               <Feather name="camera" size={20} color={colors.textPrimary} />
@@ -477,7 +520,7 @@ export default function JudgmentScreen({ navigation, route }: Props) {
 
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={handleShare}
+              onPress={handleScreenshot}
               activeOpacity={0.7}
             >
               <Feather name="share" size={20} color={colors.textPrimary} />
@@ -716,5 +759,24 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     ...typography.button,
     color: colors.textInverse,
+  },
+  selfieOverlay: {
+    position: 'absolute',
+    bottom: spacing.lg,
+    right: spacing.lg,
+    width: 120,
+    height: 150,
+    backgroundColor: '#fff',
+    padding: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
   },
 });
