@@ -59,8 +59,7 @@
           "photosPermission": "Allow ThirdParty to save verdict screenshots to your photos.",
           "savePhotosPermission": "Allow ThirdParty to save verdict screenshots to your photos."
         }
-      ],
-      "react-native-purchases"
+      ]
     ],
     "extra": {
       "eas": {
