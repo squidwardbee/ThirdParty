@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Settler",
-    "slug": "settler",
+    "name": "ThirdParty",
+    "slug": "thirdparty",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -10,15 +10,17 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1A1614"
+      "backgroundColor": "#0A0A0F"
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "xyz.thirdpart.app",
+      "bundleIdentifier": "app.thirdparty.ios",
+      "deploymentTarget": "16.0",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Settler needs access to your microphone to record arguments for judging.",
-        "NSPhotoLibraryUsageDescription": "Settler needs access to your photos to save verdict screenshots.",
-        "NSPhotoLibraryAddUsageDescription": "Settler needs permission to save verdict screenshots to your photo library.",
+        "NSMicrophoneUsageDescription": "ThirdParty needs access to your microphone to record arguments for judging.",
+        "NSPhotoLibraryUsageDescription": "ThirdParty needs access to your photos to save verdict screenshots.",
+        "NSPhotoLibraryAddUsageDescription": "ThirdParty needs permission to save verdict screenshots to your photo library.",
         "UIBackgroundModes": [
           "audio"
         ]
@@ -30,9 +32,9 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1A1614"
+        "backgroundColor": "#0A0A0F"
       },
-      "package": "app.settler.android",
+      "package": "app.thirdparty.android",
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.WRITE_EXTERNAL_STORAGE",
@@ -48,16 +50,17 @@
       [
         "expo-av",
         {
-          "microphonePermission": "Settler needs access to your microphone to record arguments for judging."
+          "microphonePermission": "ThirdParty needs access to your microphone to record arguments for judging."
         }
       ],
       [
         "expo-media-library",
         {
-          "photosPermission": "Allow Settler to save verdict screenshots to your photos.",
-          "savePhotosPermission": "Allow Settler to save verdict screenshots to your photos."
+          "photosPermission": "Allow ThirdParty to save verdict screenshots to your photos.",
+          "savePhotosPermission": "Allow ThirdParty to save verdict screenshots to your photos."
         }
-      ]
+      ],
+      "react-native-purchases"
     ],
     "extra": {
       "eas": {

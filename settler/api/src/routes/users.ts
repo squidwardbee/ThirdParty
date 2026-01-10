@@ -61,7 +61,7 @@ router.post('/me', async (req: AuthenticatedRequest, res: Response) => {
     const { displayName } = req.body;
     const { uid, email } = req.user!;
 
-    // Check if user exists
+    // Check if user exists by firebase_uid
     let user = await queryOne<UserRow>(
       'SELECT * FROM users WHERE firebase_uid = $1',
       [uid]
@@ -77,15 +77,30 @@ router.post('/me', async (req: AuthenticatedRequest, res: Response) => {
         user.display_name = displayName;
       }
     } else {
-      // Create new user
-      const id = uuidv4();
-      const rows = await query<UserRow>(
-        `INSERT INTO users (id, email, firebase_uid, display_name)
-         VALUES ($1, $2, $3, $4)
-         RETURNING *`,
-        [id, email, uid, displayName || null]
+      // Check if user exists by email (firebase_uid may have changed)
+      user = await queryOne<UserRow>(
+        'SELECT * FROM users WHERE email = $1',
+        [email]
       );
-      user = rows[0];
+
+      if (user) {
+        // Update firebase_uid for existing email
+        const rows = await query<UserRow>(
+          `UPDATE users SET firebase_uid = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+          [uid, user.id]
+        );
+        user = rows[0];
+      } else {
+        // Create new user
+        const id = uuidv4();
+        const rows = await query<UserRow>(
+          `INSERT INTO users (id, email, firebase_uid, display_name)
+           VALUES ($1, $2, $3, $4)
+           RETURNING *`,
+          [id, email, uid, displayName || null]
+        );
+        user = rows[0];
+      }
     }
 
     res.json(rowToUser(user));

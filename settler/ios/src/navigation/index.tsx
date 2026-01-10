@@ -7,6 +7,7 @@ import { useAppStore } from '../lib/store';
 import { colors } from '../lib/theme';
 import { onAuthChange } from '../lib/firebase';
 import { api } from '../lib/api';
+import { initializePurchases, loginToRevenueCat, logoutFromRevenueCat } from '../lib/purchases';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
@@ -138,6 +139,9 @@ export default function Navigation() {
   const logout = useAppStore((state) => state.logout);
 
   useEffect(() => {
+    // Initialize RevenueCat early
+    initializePurchases();
+
     // Listen to Firebase auth state changes
     const unsubscribe = onAuthChange(async (firebaseUser) => {
       if (firebaseUser) {
@@ -154,11 +158,15 @@ export default function Navigation() {
             argumentsToday: user.argumentsToday,
             preferredPersona: user.preferredPersona as 'mediator' | 'judge_judy' | 'comedic',
           });
+
+          // Log in to RevenueCat with user ID
+          await loginToRevenueCat(user.id);
         } catch (error) {
           console.error('Failed to fetch user data:', error);
         }
       } else {
         // User is signed out
+        await logoutFromRevenueCat();
         logout();
       }
       setIsLoading(false);
