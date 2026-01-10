@@ -11,27 +11,21 @@ const REVENUECAT_WEBHOOK_SECRET = process.env.REVENUECAT_WEBHOOK_SECRET;
  */
 function verifyWebhookAuth(req: Request): boolean {
   if (!REVENUECAT_WEBHOOK_SECRET) {
-    console.warn('REVENUECAT_WEBHOOK_SECRET not configured');
-    return process.env.NODE_ENV === 'development';
+    console.warn('[Webhook] REVENUECAT_WEBHOOK_SECRET not configured');
+    return false;
   }
 
   const authHeader = req.headers.authorization;
-  console.log('[Webhook] Auth header received:', authHeader ? `"${authHeader.substring(0, 20)}..."` : 'none');
-
   if (!authHeader) {
-    console.log('[Webhook] No authorization header');
     return false;
   }
 
   // Handle both "Bearer <token>" and raw "<token>" formats
-  let token = authHeader;
-  if (authHeader.startsWith('Bearer ')) {
-    token = authHeader.split('Bearer ')[1];
-  }
+  const token = authHeader.startsWith('Bearer ')
+    ? authHeader.slice(7)
+    : authHeader;
 
-  const isValid = token === REVENUECAT_WEBHOOK_SECRET;
-  console.log('[Webhook] Auth valid:', isValid);
-  return isValid;
+  return token === REVENUECAT_WEBHOOK_SECRET;
 }
 
 interface RevenueCatEvent {
