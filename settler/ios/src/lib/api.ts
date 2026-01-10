@@ -63,6 +63,17 @@ class ApiClient {
     });
   }
 
+  async updateSubscription(params: {
+    subscriptionTier: 'free' | 'premium';
+    subscriptionExpiresAt?: string | null;
+    platform?: string;
+  }) {
+    return this.request<User>('/api/users/me/subscription', {
+      method: 'PATCH',
+      body: JSON.stringify(params),
+    });
+  }
+
   // Argument endpoints (placeholders)
   async getArguments() {
     return this.request<Argument[]>('/api/arguments');

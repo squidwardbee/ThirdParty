@@ -6,6 +6,7 @@ import Purchases, {
 } from 'react-native-purchases';
 import { Platform } from 'react-native';
 import { useAppStore } from './store';
+import { api } from './api';
 
 const REVENUECAT_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY || '';
 const PREMIUM_ENTITLEMENT = 'premium';
@@ -163,21 +164,39 @@ export async function purchasePackage(planType: 'MONTHLY' | 'ANNUAL'): Promise<b
     console.log('[Purchases] Purchase completed - isPremium:', isPremium);
     console.log('[Purchases] Active entitlements:', Object.keys(customerInfo.entitlements.active));
 
-    // Always update store after purchase attempt
+    const expirationDate = customerInfo.entitlements.active[PREMIUM_ENTITLEMENT]?.expirationDate || null;
+
+    // Update local store
     const store = useAppStore.getState();
     console.log('[Purchases] Current user in store:', store.user?.id);
 
     if (store.user) {
       const updatedUser = {
         ...store.user,
-        subscriptionTier: isPremium ? 'premium' : store.user.subscriptionTier,
-        subscriptionExpiresAt: customerInfo.entitlements.active[PREMIUM_ENTITLEMENT]?.expirationDate || null,
+        subscriptionTier: isPremium ? 'premium' as const : store.user.subscriptionTier,
+        subscriptionExpiresAt: expirationDate,
       };
       console.log('[Purchases] Updating user to tier:', updatedUser.subscriptionTier);
       store.setUser(updatedUser);
       console.log('[Purchases] Store updated successfully');
     } else {
       console.warn('[Purchases] No user in store - cannot update subscription tier!');
+    }
+
+    // Update backend database
+    if (isPremium) {
+      try {
+        console.log('[Purchases] Syncing subscription to backend...');
+        await api.updateSubscription({
+          subscriptionTier: 'premium',
+          subscriptionExpiresAt: expirationDate,
+          platform: Platform.OS,
+        });
+        console.log('[Purchases] Backend subscription synced successfully');
+      } catch (error) {
+        console.error('[Purchases] Failed to sync subscription to backend:', error);
+        // Don't throw - local state is already updated, webhook will catch up
+      }
     }
 
     return isPremium;
@@ -205,21 +224,31 @@ export async function restorePurchases(): Promise<boolean> {
     console.log('[Purchases] Restoring purchases...');
     const customerInfo = await Purchases.restorePurchases();
     const isPremium = customerInfo.entitlements.active[PREMIUM_ENTITLEMENT] !== undefined;
+    const expirationDate = customerInfo.entitlements.active[PREMIUM_ENTITLEMENT]?.expirationDate || null;
 
-    if (isPremium) {
-      const store = useAppStore.getState();
-      if (store.user) {
-        store.setUser({
-          ...store.user,
-          subscriptionTier: 'premium',
-          subscriptionExpiresAt: customerInfo.entitlements.active[PREMIUM_ENTITLEMENT]?.expirationDate || null,
-        });
-      }
-      console.log('[Purchases] Restore successful - premium active');
-    } else {
-      console.log('[Purchases] Restore complete - no active subscription found');
+    // Update local store
+    const store = useAppStore.getState();
+    if (store.user) {
+      store.setUser({
+        ...store.user,
+        subscriptionTier: isPremium ? 'premium' as const : 'free',
+        subscriptionExpiresAt: expirationDate,
+      });
     }
 
+    // Sync to backend
+    try {
+      await api.updateSubscription({
+        subscriptionTier: isPremium ? 'premium' : 'free',
+        subscriptionExpiresAt: expirationDate,
+        platform: Platform.OS,
+      });
+      console.log('[Purchases] Backend synced after restore');
+    } catch (error) {
+      console.error('[Purchases] Failed to sync restore to backend:', error);
+    }
+
+    console.log('[Purchases] Restore complete - isPremium:', isPremium);
     return isPremium;
   } catch (error) {
     console.error('[Purchases] Restore failed:', error);

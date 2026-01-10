@@ -103,6 +103,48 @@ router.post('/me', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 /**
+ * PATCH /api/users/me/subscription
+ * Update user's subscription status (called after in-app purchase)
+ */
+router.patch('/me/subscription', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { subscriptionTier, subscriptionExpiresAt, platform } = req.body;
+
+    if (!['free', 'premium'].includes(subscriptionTier)) {
+      res.status(400).json({ error: 'Invalid subscription tier' });
+      return;
+    }
+
+    const rows = await query<UserRow>(
+      `UPDATE users
+       SET subscription_tier = $1,
+           subscription_expires_at = $2,
+           subscription_platform = $3,
+           updated_at = NOW()
+       WHERE firebase_uid = $4
+       RETURNING *`,
+      [
+        subscriptionTier,
+        subscriptionExpiresAt || null,
+        platform || null,
+        req.user!.uid
+      ]
+    );
+
+    if (rows.length === 0) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    console.log(`Subscription updated for user ${req.user!.uid}: ${subscriptionTier}`);
+    res.json(rowToUser(rows[0]));
+  } catch (error) {
+    console.error('Error updating subscription:', error);
+    res.status(500).json({ error: 'Failed to update subscription' });
+  }
+});
+
+/**
  * PATCH /api/users/me/persona
  * Update user's preferred AI persona
  */

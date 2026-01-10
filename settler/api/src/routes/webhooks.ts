@@ -53,7 +53,15 @@ async function findUser(
   appUserId: string,
   aliases: string[] = []
 ): Promise<{ id: string; firebase_uid: string } | null> {
-  // First try by firebase_uid (our primary identifier)
+  // Try by database ID first (we pass user.id to RevenueCat)
+  const byId = await queryOne<{ id: string; firebase_uid: string }>(
+    'SELECT id, firebase_uid FROM users WHERE id::text = $1',
+    [appUserId]
+  );
+
+  if (byId) return byId;
+
+  // Try by firebase_uid
   const byFirebase = await queryOne<{ id: string; firebase_uid: string }>(
     'SELECT id, firebase_uid FROM users WHERE firebase_uid = $1',
     [appUserId]
@@ -72,7 +80,7 @@ async function findUser(
   // Try aliases
   for (const alias of aliases) {
     const byAlias = await queryOne<{ id: string; firebase_uid: string }>(
-      'SELECT id, firebase_uid FROM users WHERE firebase_uid = $1 OR revenuecat_customer_id = $1',
+      'SELECT id, firebase_uid FROM users WHERE id::text = $1 OR firebase_uid = $1 OR revenuecat_customer_id = $1',
       [alias]
     );
     if (byAlias) return byAlias;
