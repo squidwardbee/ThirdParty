@@ -4,13 +4,12 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
   ActivityIndicator,
   Alert,
   Linking,
-  Image,
   Animated,
   Pressable,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -21,10 +20,11 @@ import {
   purchasePackage,
   restorePurchases,
 } from '../lib/purchases';
+import { useIsPremium } from '../lib/store';
 import { RootStackParamList } from '../navigation';
 import * as Haptics from 'expo-haptics';
-import leftLaurel from '../../assets/left_laurel.png';
-import rightLaurel from '../../assets/right_laurel.png';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Paywall'>;
 
@@ -38,83 +38,58 @@ const PREMIUM_FEATURES: FeatureItem[] = [
   {
     icon: 'infinite',
     title: 'Unlimited Arguments',
-    description: '24/7 access to an impartial mediator',
+    description: 'No daily limits',
   },
   {
     icon: 'search',
     title: 'AI Research',
-    description: 'Fact-checking with web search',
+    description: 'Fact-checking with sources',
   },
   {
     icon: 'mic',
     title: 'Premium Voices',
-    description: 'High-quality AI narrator voices',
-  },
-  {
-    icon: 'analytics',
-    title: 'Detailed Analysis',
-    description: 'In-depth reasoning and sources',
+    description: 'High-quality narration',
   },
 ];
 
-function FeatureRow({ feature, index }: { feature: FeatureItem; index: number }) {
-  const slideAnim = useRef(new Animated.Value(30)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacityAnim, {
-        toValue: 1,
-        duration: 400,
-        delay: 200 + index * 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 400,
-        delay: 200 + index * 100,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
-
+function FeatureRow({ feature }: { feature: FeatureItem }) {
   return (
-    <Animated.View
-      style={[
-        styles.featureRow,
-        {
-          opacity: opacityAnim,
-          transform: [{ translateX: slideAnim }],
-        },
-      ]}
-    >
+    <View style={styles.featureRow}>
       <View style={styles.featureIconWrapper}>
-        <Ionicons name={feature.icon as any} size={22} color={colors.primary} />
+        <Ionicons name={feature.icon as any} size={18} color={colors.primary} />
       </View>
       <View style={styles.featureContent}>
         <Text style={styles.featureTitle}>{feature.title}</Text>
         <Text style={styles.featureDescription}>{feature.description}</Text>
       </View>
-      <Ionicons name="checkmark-circle" size={20} color={colors.success} />
-    </Animated.View>
+      <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+    </View>
   );
 }
 
 export default function PaywallScreen({ navigation }: Props) {
   const [selectedPlan, setSelectedPlan] = useState<'MONTHLY' | 'ANNUAL'>('ANNUAL');
   const [purchasing, setPurchasing] = useState(false);
+  const isPremium = useIsPremium();
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
-  const glowAnim = useRef(new Animated.Value(0)).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
+
+  // Auto-close when user becomes premium
+  useEffect(() => {
+    if (isPremium) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      navigation.goBack();
+    }
+  }, [isPremium, navigation]);
 
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 600,
+        duration: 400,
         useNativeDriver: true,
       }),
       Animated.spring(scaleAnim, {
@@ -124,35 +99,14 @@ export default function PaywallScreen({ navigation }: Props) {
         useNativeDriver: true,
       }),
     ]).start();
-
-    // Glow animation
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowAnim, {
-          toValue: 1,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(glowAnim, {
-          toValue: 0.5,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
   }, []);
 
   const handlePurchase = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setPurchasing(true);
     try {
-      const success = await purchasePackage(selectedPlan);
-      if (success) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert('Success!', 'Welcome to ThirdParty Pro!', [
-          { text: 'OK', onPress: () => navigation.goBack() },
-        ]);
-      }
+      await purchasePackage(selectedPlan);
+      // Auto-close handled by isPremium useEffect
     } catch (error: any) {
       if (!error.userCancelled) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -168,14 +122,10 @@ export default function PaywallScreen({ navigation }: Props) {
     setPurchasing(true);
     try {
       const success = await restorePurchases();
-      if (success) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert('Restored!', 'Your subscription has been restored.', [
-          { text: 'OK', onPress: () => navigation.goBack() },
-        ]);
-      } else {
+      if (!success) {
         Alert.alert('No Subscription Found', 'We could not find an active subscription.');
       }
+      // Auto-close handled by isPremium useEffect if restored
     } catch (error: any) {
       Alert.alert('Restore Failed', error.message || 'Please try again');
     } finally {
@@ -209,12 +159,6 @@ export default function PaywallScreen({ navigation }: Props) {
         end={{ x: 1, y: 1 }}
       />
 
-      {/* Glow orbs */}
-      <View style={styles.glowOrbContainer} pointerEvents="none">
-        <Animated.View style={[styles.glowOrb, styles.glowGreen, { opacity: glowAnim }]} />
-        <Animated.View style={[styles.glowOrb, styles.glowPink, { opacity: glowAnim }]} />
-      </View>
-
       <SafeAreaView style={styles.safeArea}>
         {/* Close Button */}
         <TouchableOpacity
@@ -228,11 +172,7 @@ export default function PaywallScreen({ navigation }: Props) {
           <Ionicons name="close" size={24} color={colors.textSecondary} />
         </TouchableOpacity>
 
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
+        <View style={styles.content}>
           {/* Header */}
           <Animated.View
             style={[
@@ -243,54 +183,28 @@ export default function PaywallScreen({ navigation }: Props) {
               },
             ]}
           >
-            <View style={styles.laurelWrapper}>
-              <Image source={leftLaurel} style={styles.laurelIcon} />
-              <View style={styles.iconContainer}>
-                <MaterialCommunityIcons name="crown" size={32} color={colors.primary} />
-              </View>
-              <Image source={rightLaurel} style={styles.laurelIcon} />
+            <View style={styles.iconContainer}>
+              <MaterialCommunityIcons name="crown" size={28} color={colors.primary} />
             </View>
-
             <Text style={styles.title}>ThirdParty Pro</Text>
-            <Text style={styles.subtitle}>Unlock the full courtroom experience</Text>
+            <Text style={styles.subtitle}>Unlock the full experience</Text>
           </Animated.View>
 
-          {/* Features */}
-          <View style={styles.featuresCard}>
-            {PREMIUM_FEATURES.map((feature, index) => (
-              <FeatureRow key={feature.title} feature={feature} index={index} />
+          {/* Features - Horizontal */}
+          <View style={styles.featuresRow}>
+            {PREMIUM_FEATURES.map((feature) => (
+              <View key={feature.title} style={styles.featureItem}>
+                <View style={styles.featureIconWrapper}>
+                  <Ionicons name={feature.icon as any} size={20} color={colors.primary} />
+                </View>
+                <Text style={styles.featureTitle}>{feature.title}</Text>
+              </View>
             ))}
           </View>
 
           {/* Plans */}
           <Animated.View style={[styles.planStack, { opacity: fadeAnim }]}>
-            {/* Monthly Plan */}
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setSelectedPlan('MONTHLY');
-              }}
-            >
-              <View
-                style={[
-                  styles.planRow,
-                  selectedPlan === 'MONTHLY' && styles.planSelected,
-                ]}
-              >
-                <View style={styles.planLeft}>
-                  <View style={[styles.radioOuter, selectedPlan === 'MONTHLY' && styles.radioOuterSelected]}>
-                    {selectedPlan === 'MONTHLY' && <View style={styles.radioInner} />}
-                  </View>
-                  <View>
-                    <Text style={styles.planTitle}>Monthly</Text>
-                    <Text style={styles.planSub}>Billed monthly</Text>
-                  </View>
-                </View>
-                <Text style={styles.planPrice}>$9.99</Text>
-              </View>
-            </Pressable>
-
-            {/* Annual Plan */}
+            {/* Annual Plan - First/Default */}
             <Pressable
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -326,6 +240,32 @@ export default function PaywallScreen({ navigation }: Props) {
                 </View>
               </View>
             </Pressable>
+
+            {/* Monthly Plan */}
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setSelectedPlan('MONTHLY');
+              }}
+            >
+              <View
+                style={[
+                  styles.planRow,
+                  selectedPlan === 'MONTHLY' && styles.planSelected,
+                ]}
+              >
+                <View style={styles.planLeft}>
+                  <View style={[styles.radioOuter, selectedPlan === 'MONTHLY' && styles.radioOuterSelected]}>
+                    {selectedPlan === 'MONTHLY' && <View style={styles.radioInner} />}
+                  </View>
+                  <View>
+                    <Text style={styles.planTitle}>Monthly</Text>
+                    <Text style={styles.planSub}>Billed monthly</Text>
+                  </View>
+                </View>
+                <Text style={styles.planPrice}>$9.99</Text>
+              </View>
+            </Pressable>
           </Animated.View>
 
           {/* Purchase Button */}
@@ -347,7 +287,7 @@ export default function PaywallScreen({ navigation }: Props) {
                   <ActivityIndicator color={colors.textInverse} />
                 ) : (
                   <>
-                    <Text style={styles.purchaseButtonText}>Start 3-Day Free Trial</Text>
+                    <Text style={styles.purchaseButtonText}>Start Free Trial</Text>
                     <Ionicons name="arrow-forward" size={20} color={colors.textInverse} />
                   </>
                 )}
@@ -356,7 +296,7 @@ export default function PaywallScreen({ navigation }: Props) {
           </Animated.View>
 
           <Text style={styles.trialNote}>
-            No payment now. Cancel anytime during trial.
+            3-day free trial · Cancel anytime
           </Text>
 
           {/* Restore */}
@@ -368,23 +308,22 @@ export default function PaywallScreen({ navigation }: Props) {
             <Text style={styles.restoreButtonText}>Restore Purchases</Text>
           </TouchableOpacity>
 
-          {/* Legal */}
-          <Text style={styles.legalText}>
-            Payment will be charged to your Apple ID account at confirmation of purchase.
-            Subscription automatically renews unless canceled at least 24 hours before
-            the end of the current period.
-          </Text>
-
-          <View style={styles.legalLinks}>
-            <TouchableOpacity onPress={() => Linking.openURL('https://thirdparty.app/privacy')}>
-              <Text style={styles.legalLink}>Privacy</Text>
-            </TouchableOpacity>
-            <View style={styles.legalDot} />
-            <TouchableOpacity onPress={() => Linking.openURL('https://thirdparty.app/terms')}>
-              <Text style={styles.legalLink}>Terms</Text>
-            </TouchableOpacity>
+          {/* Legal - Bottom */}
+          <View style={styles.legalContainer}>
+            <Text style={styles.legalText}>
+              Payment charged after trial. Auto-renews until canceled.
+            </Text>
+            <View style={styles.legalLinks}>
+              <TouchableOpacity onPress={() => Linking.openURL('https://thirdparty.app/privacy')}>
+                <Text style={styles.legalLink}>Privacy</Text>
+              </TouchableOpacity>
+              <Text style={styles.legalDot}>·</Text>
+              <TouchableOpacity onPress={() => Linking.openURL('https://thirdparty.app/terms')}>
+                <Text style={styles.legalLink}>Terms</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </ScrollView>
+        </View>
       </SafeAreaView>
     </View>
   );
@@ -398,52 +337,22 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  scrollView: {
+  content: {
     flex: 1,
-  },
-  scrollContent: {
     paddingHorizontal: spacing.screenPadding,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.xxl,
-  },
-
-  // Glow effects
-  glowOrbContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    overflow: 'hidden',
-  },
-  glowOrb: {
-    position: 'absolute',
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-  },
-  glowGreen: {
-    top: -80,
-    right: -80,
-    backgroundColor: colors.primary,
-    opacity: 0.12,
-  },
-  glowPink: {
-    top: 150,
-    left: -120,
-    backgroundColor: colors.secondary,
-    opacity: 0.1,
+    paddingTop: spacing.md,
+    justifyContent: 'space-between',
   },
 
   // Close button
   closeButton: {
     position: 'absolute',
-    top: spacing.xl + 44, // SafeAreaView offset
+    top: spacing.sm,
     right: spacing.screenPadding,
     zIndex: 10,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: colors.bgTertiary,
     justifyContent: 'center',
     alignItems: 'center',
@@ -452,92 +361,84 @@ const styles = StyleSheet.create({
   // Header
   header: {
     alignItems: 'center',
-    marginBottom: spacing.xl,
-  },
-  laurelWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  laurelIcon: {
-    width: 64,
-    height: 64,
-    tintColor: colors.primary,
+    marginBottom: spacing.lg,
   },
   iconContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: `${colors.primary}15`,
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: spacing.sm,
+    marginBottom: spacing.sm,
     borderWidth: 2,
     borderColor: `${colors.primary}30`,
   },
   title: {
-    ...typography.h1,
+    ...typography.h2,
     color: colors.primary,
-    marginBottom: spacing.xs,
+    marginBottom: 2,
   },
   subtitle: {
-    ...typography.body,
+    ...typography.caption,
     color: colors.textSecondary,
   },
 
-  // Features
-  featuresCard: {
-    backgroundColor: colors.bgCard,
-    borderRadius: borderRadius.card,
-    padding: spacing.lg,
-    marginBottom: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.md,
-  },
-  featureRow: {
+  // Features - Horizontal row
+  featuresRow: {
     flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.sm,
+  },
+  featureItem: {
     alignItems: 'center',
-    paddingVertical: spacing.sm,
+    flex: 1,
   },
   featureIconWrapper: {
     width: 40,
     height: 40,
-    borderRadius: borderRadius.sm,
+    borderRadius: 20,
     backgroundColor: `${colors.primary}15`,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  featureTitle: {
+    ...typography.small,
+    color: colors.textPrimary,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  featureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
   },
   featureContent: {
     flex: 1,
   },
-  featureTitle: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-  },
   featureDescription: {
-    ...typography.caption,
+    ...typography.small,
     color: colors.textSecondary,
   },
 
   // Plans
   planStack: {
-    gap: spacing.md,
-    marginBottom: spacing.xl,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   planRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: colors.bgCard,
-    borderRadius: borderRadius.card,
+    borderRadius: borderRadius.lg,
     padding: spacing.md,
     borderWidth: 2,
     borderColor: colors.border,
     position: 'relative',
     overflow: 'visible',
-    ...shadows.sm,
   },
   planSelected: {
     borderColor: colors.primary,
@@ -549,24 +450,24 @@ const styles = StyleSheet.create({
     right: spacing.md,
     backgroundColor: colors.primary,
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xxs,
+    paddingVertical: 2,
     borderRadius: borderRadius.sm,
   },
   bestValueText: {
-    ...typography.small,
+    fontSize: 10,
     color: colors.textInverse,
     fontWeight: '700',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
   planLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   radioOuter: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     borderWidth: 2,
     borderColor: colors.border,
     justifyContent: 'center',
@@ -576,37 +477,38 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   radioInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: colors.primary,
   },
   planTitle: {
     ...typography.bodyMedium,
     color: colors.textPrimary,
+    fontSize: 15,
   },
   planSub: {
-    ...typography.caption,
+    ...typography.small,
     color: colors.textSecondary,
   },
   savingsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   strikePrice: {
-    ...typography.caption,
+    ...typography.small,
     color: colors.textMuted,
     textDecorationLine: 'line-through',
   },
   discountBadge: {
     backgroundColor: `${colors.success}20`,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    borderRadius: borderRadius.xs,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
   },
   discountText: {
-    ...typography.small,
+    fontSize: 10,
     color: colors.success,
     fontWeight: '700',
   },
@@ -614,11 +516,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   planPrice: {
-    ...typography.h2,
+    ...typography.h3,
     color: colors.textPrimary,
   },
   perYear: {
-    ...typography.caption,
+    ...typography.small,
     color: colors.textMuted,
   },
 
@@ -626,7 +528,7 @@ const styles = StyleSheet.create({
   purchaseButton: {
     borderRadius: borderRadius.button,
     overflow: 'hidden',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
     ...shadows.glow,
   },
   purchaseButtonDisabled: {
@@ -636,54 +538,55 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.md + 2,
+    paddingVertical: spacing.md,
     gap: spacing.sm,
   },
   purchaseButtonText: {
     ...typography.button,
     color: colors.textInverse,
-    fontSize: 17,
+    fontSize: 16,
   },
   trialNote: {
-    ...typography.caption,
+    ...typography.small,
     color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.sm,
   },
 
   // Restore
   restoreButton: {
-    padding: spacing.md,
+    paddingVertical: spacing.sm,
     alignItems: 'center',
-    marginBottom: spacing.xl,
   },
   restoreButtonText: {
-    ...typography.body,
-    color: colors.textSecondary,
+    ...typography.caption,
+    color: colors.textMuted,
   },
 
   // Legal
+  legalContainer: {
+    paddingBottom: spacing.sm,
+  },
   legalText: {
     ...typography.small,
     color: colors.textMuted,
     textAlign: 'center',
-    marginBottom: spacing.md,
-    lineHeight: 16,
+    marginBottom: spacing.xs,
+    fontSize: 11,
   },
   legalLinks: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   legalLink: {
-    ...typography.caption,
-    color: colors.textSecondary,
+    ...typography.small,
+    color: colors.textMuted,
+    fontSize: 11,
   },
   legalDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: colors.textMuted,
+    color: colors.textMuted,
+    fontSize: 11,
   },
 });

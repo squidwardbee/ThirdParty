@@ -1,0 +1,107 @@
+{
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
+  "identifier" : "69E63F87",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6757620308",
+    "_askToBuyEnabled" : false,
+    "_billingGracePeriodEnabled" : false,
+    "_billingIssuesEnabled" : false,
+    "_developerTeamID" : "5458KLVL8H",
+    "_disableDialogs" : false,
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 789700985.51393104,
+    "_locale" : "en_US",
+    "_renewalBillingIssuesEnabled" : false,
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ],
+    "_timeRate" : 0
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "21885835",
+      "localizations" : [
+
+      ],
+      "name" : "Thirdparty",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "59.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "6757619561",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Canadian",
+              "displayName" : "Canada",
+              "locale" : "en_CA"
+            }
+          ],
+          "productID" : "thirdparty_premium_annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Third Party Annual",
+          "subscriptionGroupID" : "21885835",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "9.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6757623794",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Canadian",
+              "displayName" : "Canada",
+              "locale" : "en_CA"
+            }
+          ],
+          "productID" : "thirdparty_premium_monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Third Party Monthly",
+          "subscriptionGroupID" : "21885835",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

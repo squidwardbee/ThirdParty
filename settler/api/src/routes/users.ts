@@ -81,14 +81,14 @@ router.post('/me', async (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
-    // User not found by firebase_uid - use UPSERT on email
-    // This handles the case where user exists with same email but different firebase_uid
+    // User not found by firebase_uid - use UPSERT on firebase_uid
+    // This handles race conditions where multiple requests try to create the same user
     const id = uuidv4();
     const rows = await query<UserRow>(
       `INSERT INTO users (id, email, firebase_uid, display_name)
        VALUES ($1, $2, $3, $4)
-       ON CONFLICT (email) DO UPDATE SET
-         firebase_uid = EXCLUDED.firebase_uid,
+       ON CONFLICT (firebase_uid) DO UPDATE SET
+         email = EXCLUDED.email,
          updated_at = NOW()
        RETURNING *`,
       [id, email, uid, displayName || null]

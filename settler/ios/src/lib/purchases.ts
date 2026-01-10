@@ -11,6 +11,7 @@ const REVENUECAT_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY || '';
 const PREMIUM_ENTITLEMENT = 'premium';
 
 let isInitialized = false;
+let listenerAdded = false;
 
 /**
  * Initialize RevenueCat with optional user ID
@@ -29,13 +30,32 @@ export async function initializePurchases(userId?: string): Promise<void> {
   try {
     Purchases.setLogLevel(LOG_LEVEL.DEBUG);
 
-    await Purchases.configure({
+    Purchases.configure({
       apiKey: REVENUECAT_API_KEY,
       appUserID: userId || null,
     });
 
     isInitialized = true;
     console.log('[Purchases] RevenueCat initialized successfully');
+
+    // Add listener for real-time subscription updates
+    if (!listenerAdded) {
+      Purchases.addCustomerInfoUpdateListener((customerInfo) => {
+        const isPremium = customerInfo.entitlements.active[PREMIUM_ENTITLEMENT] !== undefined;
+        console.log('[Purchases] CustomerInfo updated - premium:', isPremium);
+
+        const store = useAppStore.getState();
+        if (store.user) {
+          store.setUser({
+            ...store.user,
+            subscriptionTier: isPremium ? 'premium' : 'free',
+            subscriptionExpiresAt: customerInfo.entitlements.active[PREMIUM_ENTITLEMENT]?.expirationDate || null,
+          });
+        }
+      });
+      listenerAdded = true;
+      console.log('[Purchases] CustomerInfo listener added');
+    }
 
     // Check initial subscription status
     await checkSubscriptionStatus();
@@ -226,7 +246,6 @@ export async function logoutFromRevenueCat(): Promise<void> {
 
   try {
     // Check if user is anonymous before trying to logout
-    const customerInfo = await Purchases.getCustomerInfo();
     const appUserId = await Purchases.getAppUserID();
 
     // Don't logout if already anonymous (starts with $RCAnonymousID)
