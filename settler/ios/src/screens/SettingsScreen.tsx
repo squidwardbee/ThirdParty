@@ -15,7 +15,6 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, typography, spacing, borderRadius, shadows } from '../lib/theme';
 import { useAppStore, useUser, useIsPremium } from '../lib/store';
-import { api } from '../lib/api';
 import { signOut } from '../lib/firebase';
 import { getManagementUrl } from '../lib/purchases';
 import * as Haptics from 'expo-haptics';
@@ -131,42 +130,6 @@ export default function SettingsScreen({ navigation }: any) {
     ]);
   };
 
-  const handleDeleteAccount = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    Alert.alert(
-      'Delete Account',
-      'Are you sure? This action cannot be undone and all your data will be permanently deleted.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert(
-              'Final Confirmation',
-              'This will permanently delete your account and all associated data.',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Yes, Delete Everything',
-                  style: 'destructive',
-                  onPress: async () => {
-                    try {
-                      await api.deleteAccount();
-                      await signOut();
-                      logout();
-                    } catch (error) {
-                      Alert.alert('Error', 'Failed to delete account');
-                    }
-                  },
-                },
-              ]
-            );
-          },
-        },
-      ]
-    );
-  };
 
   const handleUpgrade = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -311,13 +274,6 @@ export default function SettingsScreen({ navigation }: any) {
                 label="Sign Out"
                 onPress={handleLogout}
                 showChevron={false}
-              />
-              <SettingsRow
-                icon={<Ionicons name="trash-outline" size={20} color={colors.error} />}
-                label="Delete Account"
-                onPress={handleDeleteAccount}
-                showChevron={false}
-                danger
               />
             </View>
           </Animated.View>

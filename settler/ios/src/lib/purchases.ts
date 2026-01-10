@@ -160,17 +160,24 @@ export async function purchasePackage(planType: 'MONTHLY' | 'ANNUAL'): Promise<b
     const { customerInfo } = await Purchases.purchasePackage(pkg);
     const isPremium = customerInfo.entitlements.active[PREMIUM_ENTITLEMENT] !== undefined;
 
-    if (isPremium) {
-      // Update store
-      const store = useAppStore.getState();
-      if (store.user) {
-        store.setUser({
-          ...store.user,
-          subscriptionTier: 'premium',
-          subscriptionExpiresAt: customerInfo.entitlements.active[PREMIUM_ENTITLEMENT]?.expirationDate || null,
-        });
-      }
-      console.log('[Purchases] Purchase successful!');
+    console.log('[Purchases] Purchase completed - isPremium:', isPremium);
+    console.log('[Purchases] Active entitlements:', Object.keys(customerInfo.entitlements.active));
+
+    // Always update store after purchase attempt
+    const store = useAppStore.getState();
+    console.log('[Purchases] Current user in store:', store.user?.id);
+
+    if (store.user) {
+      const updatedUser = {
+        ...store.user,
+        subscriptionTier: isPremium ? 'premium' : store.user.subscriptionTier,
+        subscriptionExpiresAt: customerInfo.entitlements.active[PREMIUM_ENTITLEMENT]?.expirationDate || null,
+      };
+      console.log('[Purchases] Updating user to tier:', updatedUser.subscriptionTier);
+      store.setUser(updatedUser);
+      console.log('[Purchases] Store updated successfully');
+    } else {
+      console.warn('[Purchases] No user in store - cannot update subscription tier!');
     }
 
     return isPremium;

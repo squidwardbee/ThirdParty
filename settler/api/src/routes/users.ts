@@ -103,29 +103,6 @@ router.post('/me', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 /**
- * DELETE /api/users/me
- * Delete user account and all associated data (GDPR compliance)
- */
-router.delete('/me', async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const result = await query(
-      'DELETE FROM users WHERE firebase_uid = $1 RETURNING id',
-      [req.user!.uid]
-    );
-
-    if (result.length === 0) {
-      res.status(404).json({ error: 'User not found' });
-      return;
-    }
-
-    res.json({ success: true, message: 'Account deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting user:', error);
-    res.status(500).json({ error: 'Failed to delete account' });
-  }
-});
-
-/**
  * PATCH /api/users/me/persona
  * Update user's preferred AI persona
  */

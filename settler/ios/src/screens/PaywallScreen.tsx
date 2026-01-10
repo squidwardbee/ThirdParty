@@ -20,7 +20,7 @@ import {
   purchasePackage,
   restorePurchases,
 } from '../lib/purchases';
-import { useIsPremium } from '../lib/store';
+import { useIsPremium, useAppStore } from '../lib/store';
 import { RootStackParamList } from '../navigation';
 import * as Haptics from 'expo-haptics';
 
@@ -71,6 +71,13 @@ export default function PaywallScreen({ navigation }: Props) {
   const [selectedPlan, setSelectedPlan] = useState<'MONTHLY' | 'ANNUAL'>('ANNUAL');
   const [purchasing, setPurchasing] = useState(false);
   const isPremium = useIsPremium();
+  const user = useAppStore((state) => state.user);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('[PaywallScreen] isPremium changed:', isPremium);
+    console.log('[PaywallScreen] user.subscriptionTier:', user?.subscriptionTier);
+  }, [isPremium, user?.subscriptionTier]);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -79,7 +86,9 @@ export default function PaywallScreen({ navigation }: Props) {
 
   // Auto-close when user becomes premium
   useEffect(() => {
+    console.log('[PaywallScreen] Auto-close check - isPremium:', isPremium);
     if (isPremium) {
+      console.log('[PaywallScreen] Closing paywall - user is premium!');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       navigation.goBack();
     }

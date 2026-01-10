@@ -56,12 +56,6 @@ class ApiClient {
     });
   }
 
-  async deleteAccount() {
-    return this.request<{ success: boolean }>('/api/users/me', {
-      method: 'DELETE',
-    });
-  }
-
   async updatePersona(persona: string) {
     return this.request<User>('/api/users/me/persona', {
       method: 'PATCH',
