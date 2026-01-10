@@ -16,12 +16,22 @@ function verifyWebhookAuth(req: Request): boolean {
   }
 
   const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
+  console.log('[Webhook] Auth header received:', authHeader ? `"${authHeader.substring(0, 20)}..."` : 'none');
+
+  if (!authHeader) {
+    console.log('[Webhook] No authorization header');
     return false;
   }
 
-  const token = authHeader.split('Bearer ')[1];
-  return token === REVENUECAT_WEBHOOK_SECRET;
+  // Handle both "Bearer <token>" and raw "<token>" formats
+  let token = authHeader;
+  if (authHeader.startsWith('Bearer ')) {
+    token = authHeader.split('Bearer ')[1];
+  }
+
+  const isValid = token === REVENUECAT_WEBHOOK_SECRET;
+  console.log('[Webhook] Auth valid:', isValid);
+  return isValid;
 }
 
 interface RevenueCatEvent {
