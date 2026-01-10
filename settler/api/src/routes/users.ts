@@ -55,20 +55,21 @@ router.get('/me', async (req: AuthenticatedRequest, res: Response) => {
 /**
  * POST /api/users/me
  * Create or update current user (called after Firebase auth)
+ * Uses UPSERT to handle race conditions and firebase_uid changes
  */
 router.post('/me', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { displayName } = req.body;
     const { uid, email } = req.user!;
 
-    // Check if user exists by firebase_uid
+    // First, check if user exists by firebase_uid
     let user = await queryOne<UserRow>(
       'SELECT * FROM users WHERE firebase_uid = $1',
       [uid]
     );
 
     if (user) {
-      // Update existing user
+      // Update existing user if needed
       if (displayName && !user.display_name) {
         await query(
           'UPDATE users SET display_name = $1, updated_at = NOW() WHERE id = $2',
@@ -76,32 +77,23 @@ router.post('/me', async (req: AuthenticatedRequest, res: Response) => {
         );
         user.display_name = displayName;
       }
-    } else {
-      // Check if user exists by email (firebase_uid may have changed)
-      user = await queryOne<UserRow>(
-        'SELECT * FROM users WHERE email = $1',
-        [email]
-      );
-
-      if (user) {
-        // Update firebase_uid for existing email
-        const rows = await query<UserRow>(
-          `UPDATE users SET firebase_uid = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
-          [uid, user.id]
-        );
-        user = rows[0];
-      } else {
-        // Create new user
-        const id = uuidv4();
-        const rows = await query<UserRow>(
-          `INSERT INTO users (id, email, firebase_uid, display_name)
-           VALUES ($1, $2, $3, $4)
-           RETURNING *`,
-          [id, email, uid, displayName || null]
-        );
-        user = rows[0];
-      }
+      res.json(rowToUser(user));
+      return;
     }
+
+    // User not found by firebase_uid - use UPSERT on email
+    // This handles the case where user exists with same email but different firebase_uid
+    const id = uuidv4();
+    const rows = await query<UserRow>(
+      `INSERT INTO users (id, email, firebase_uid, display_name)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (email) DO UPDATE SET
+         firebase_uid = EXCLUDED.firebase_uid,
+         updated_at = NOW()
+       RETURNING *`,
+      [id, email, uid, displayName || null]
+    );
+    user = rows[0];
 
     res.json(rowToUser(user));
   } catch (error) {

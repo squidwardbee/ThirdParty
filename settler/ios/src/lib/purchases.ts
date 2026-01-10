@@ -225,10 +225,21 @@ export async function logoutFromRevenueCat(): Promise<void> {
   if (!isInitialized) return;
 
   try {
+    // Check if user is anonymous before trying to logout
+    const customerInfo = await Purchases.getCustomerInfo();
+    const appUserId = await Purchases.getAppUserID();
+
+    // Don't logout if already anonymous (starts with $RCAnonymousID)
+    if (appUserId.startsWith('$RCAnonymousID')) {
+      console.log('[Purchases] User is already anonymous, skipping logout');
+      return;
+    }
+
     console.log('[Purchases] Logging out user');
     await Purchases.logOut();
   } catch (error) {
-    console.error('[Purchases] Logout failed:', error);
+    // Ignore "user is anonymous" errors
+    console.log('[Purchases] Logout skipped or failed:', error);
   }
 }
 
