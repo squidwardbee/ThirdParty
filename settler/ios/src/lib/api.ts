@@ -123,6 +123,13 @@ class ApiClient {
       body: JSON.stringify({ audio: audioBase64 }),
     });
   }
+
+  // Account management
+  async deleteAccount() {
+    return this.request<{ success: boolean }>('/api/users/me', {
+      method: 'DELETE',
+    });
+  }
 }
 
 // Types used by the API client

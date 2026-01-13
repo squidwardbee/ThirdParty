@@ -14,9 +14,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, typography, spacing, borderRadius, shadows } from '../lib/theme';
-import { useAppStore, useUser, useIsPremium } from '../lib/store';
+import { useAppStore, useUser, useIsPremium, useHasConsentedToAI } from '../lib/store';
 import { signOut } from '../lib/firebase';
 import { getManagementUrl } from '../lib/purchases';
+import { api } from '../lib/api';
 import * as Haptics from 'expo-haptics';
 
 function SettingsRow({
@@ -89,7 +90,10 @@ function SettingsRow({
 export default function SettingsScreen({ navigation }: any) {
   const user = useUser();
   const isPremium = useIsPremium();
+  const hasConsentedToAI = useHasConsentedToAI();
   const logout = useAppStore((state) => state.logout);
+  const revokeAIConsent = useAppStore((state) => state.revokeAIConsent);
+  const showAIConsentModal = useAppStore((state) => state.showAIConsentModal);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -130,6 +134,44 @@ export default function SettingsScreen({ navigation }: any) {
     ]);
   };
 
+  const handleDeleteAccount = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete your account? This action cannot be undone. All your data will be permanently deleted.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Account',
+          style: 'destructive',
+          onPress: () => {
+            // Second confirmation for destructive action
+            Alert.alert(
+              'Final Confirmation',
+              'This will permanently delete your account and all associated data. Are you absolutely sure?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Yes, Delete My Account',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      await api.deleteAccount();
+                      await signOut();
+                      logout();
+                    } catch (error) {
+                      console.error('Delete account error:', error);
+                      Alert.alert('Error', 'Failed to delete account. Please try again or contact support.');
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
 
   const handleUpgrade = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -138,6 +180,32 @@ export default function SettingsScreen({ navigation }: any) {
 
   const handleManageSubscription = () => {
     Linking.openURL(getManagementUrl());
+  };
+
+  const handleAIDataSettings = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (hasConsentedToAI) {
+      Alert.alert(
+        'AI Data Sharing',
+        'You have consented to share your argument data with AI services for processing. Would you like to revoke this consent?',
+        [
+          { text: 'Keep Enabled', style: 'cancel' },
+          {
+            text: 'Revoke Consent',
+            style: 'destructive',
+            onPress: () => {
+              revokeAIConsent();
+              Alert.alert(
+                'Consent Revoked',
+                'AI data sharing has been disabled. You will need to consent again to use judgment features.'
+              );
+            },
+          },
+        ]
+      );
+    } else {
+      showAIConsentModal();
+    }
   };
 
   const getPersonaName = () => {
@@ -241,6 +309,19 @@ export default function SettingsScreen({ navigation }: any) {
             </View>
           </Animated.View>
 
+          {/* Privacy Section */}
+          <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
+            <Text style={styles.sectionTitle}>PRIVACY</Text>
+            <View style={styles.menuGroup}>
+              <SettingsRow
+                icon={<MaterialCommunityIcons name="robot-outline" size={20} color={colors.textSecondary} />}
+                label="AI Data Processing"
+                value={hasConsentedToAI ? 'Enabled' : 'Disabled'}
+                onPress={handleAIDataSettings}
+              />
+            </View>
+          </Animated.View>
+
           {/* Support Section */}
           <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
             <Text style={styles.sectionTitle}>SUPPORT</Text>
@@ -248,12 +329,12 @@ export default function SettingsScreen({ navigation }: any) {
               <SettingsRow
                 icon={<Ionicons name="shield-checkmark-outline" size={20} color={colors.textSecondary} />}
                 label="Privacy Policy"
-                onPress={() => Linking.openURL('https://thirdparty.app/privacy')}
+                onPress={() => Linking.openURL('https://unexpected-freighter-449.notion.site/Privacy-Policy-2e7d32c8c70180d6bac8d8663c6091cf')}
               />
               <SettingsRow
                 icon={<Ionicons name="document-text-outline" size={20} color={colors.textSecondary} />}
                 label="Terms of Service"
-                onPress={() => Linking.openURL('https://thirdparty.app/terms')}
+                onPress={() => Linking.openURL('https://unexpected-freighter-449.notion.site/2e7d32c8c701809a8ffae4ad660a1ca0')}
               />
               {isPremium && (
                 <SettingsRow
@@ -274,6 +355,13 @@ export default function SettingsScreen({ navigation }: any) {
                 label="Sign Out"
                 onPress={handleLogout}
                 showChevron={false}
+              />
+              <SettingsRow
+                icon={<Ionicons name="trash-outline" size={20} color={colors.error} />}
+                label="Delete Account"
+                onPress={handleDeleteAccount}
+                showChevron={false}
+                danger
               />
             </View>
           </Animated.View>

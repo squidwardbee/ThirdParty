@@ -316,7 +316,41 @@ export default function JudgmentScreen({ navigation, route }: Props) {
       });
 
       if (!result.canceled) {
+        // Set selfie to render the composite
         setSelfieUri(result.assets[0].uri);
+
+        // Wait for render, then capture and share
+        setTimeout(async () => {
+          if (selfieViewShotRef.current) {
+            try {
+              const uri = await captureRef(selfieViewShotRef, {
+                format: 'png',
+                quality: 1,
+              });
+
+              // Save to photo library
+              const { status } = await MediaLibrary.requestPermissionsAsync();
+              if (status === 'granted') {
+                await MediaLibrary.saveToLibraryAsync(uri);
+              }
+
+              // Open share sheet
+              const isAvailable = await Sharing.isAvailableAsync();
+              if (isAvailable) {
+                await Sharing.shareAsync(uri, {
+                  mimeType: 'image/png',
+                  dialogTitle: 'Share Your Victory',
+                });
+              }
+
+              // Clear the selfie after sharing
+              setSelfieUri(null);
+            } catch (err) {
+              console.error('Share error:', err);
+              setSelfieUri(null);
+            }
+          }
+        }, 300);
       }
     } catch (error) {
       console.error('Camera error:', error);
@@ -778,15 +812,11 @@ const styles = StyleSheet.create({
   },
   selfieContainer: {
     position: 'absolute',
-    bottom: spacing.md,
-    right: spacing.md,
-    width: 180,
-    height: 320,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    // Render off-screen for capture only
+    left: -9999,
+    top: -9999,
+    width: 360,
+    height: 640,
   },
   selfieImage: {
     position: 'absolute',

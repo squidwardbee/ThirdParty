@@ -177,4 +177,38 @@ router.patch('/me/persona', async (req: AuthenticatedRequest, res: Response) => 
   }
 });
 
+/**
+ * DELETE /api/users/me
+ * Delete user account and all associated data
+ * Required by Apple App Store Guidelines 5.1.1(v)
+ */
+router.delete('/me', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { uid } = req.user!;
+
+    // Get user first to get their internal ID
+    const user = await queryOne<UserRow>(
+      'SELECT * FROM users WHERE firebase_uid = $1',
+      [uid]
+    );
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // Delete all user's arguments (cascades to turns and judgments via foreign keys)
+    await query('DELETE FROM arguments WHERE user_id = $1', [user.id]);
+
+    // Delete the user record
+    await query('DELETE FROM users WHERE id = $1', [user.id]);
+
+    console.log(`Account deleted for user ${uid} (${user.email})`);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting account:', error);
+    res.status(500).json({ error: 'Failed to delete account' });
+  }
+});
+
 export default router;

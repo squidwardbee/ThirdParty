@@ -56,6 +56,10 @@ interface AppState {
   token: string | null;
   isAuthenticated: boolean;
 
+  // AI Consent (Apple Guideline 5.1.2i)
+  hasConsentedToAI: boolean;
+  aiConsentDate: string | null;
+
   // Current session
   currentArgument: {
     mode: 'live' | 'turn_based' | null;
@@ -75,6 +79,7 @@ interface AppState {
 
   // UI
   isUpgradeModalVisible: boolean;
+  isAIConsentModalVisible: boolean;
 
   // Actions
   setUser: (user: User | null) => void;
@@ -103,6 +108,12 @@ interface AppState {
   // UI actions
   showUpgradeModal: () => void;
   hideUpgradeModal: () => void;
+  showAIConsentModal: () => void;
+  hideAIConsentModal: () => void;
+
+  // AI Consent actions
+  setAIConsent: (consented: boolean) => void;
+  revokeAIConsent: () => void;
 
   // Usage tracking
   incrementArgumentsToday: () => void;
@@ -116,6 +127,10 @@ export const useAppStore = create<AppState>()(
       user: null,
       token: null,
       isAuthenticated: false,
+
+      // AI Consent
+      hasConsentedToAI: false,
+      aiConsentDate: null,
 
       currentArgument: {
         mode: null,
@@ -132,6 +147,7 @@ export const useAppStore = create<AppState>()(
       arguments: [],
 
       isUpgradeModalVisible: false,
+      isAIConsentModalVisible: false,
 
       // Auth actions
       setUser: (user) => set({ user, isAuthenticated: !!user }),
@@ -198,6 +214,21 @@ export const useAppStore = create<AppState>()(
       // UI actions
       showUpgradeModal: () => set({ isUpgradeModalVisible: true }),
       hideUpgradeModal: () => set({ isUpgradeModalVisible: false }),
+      showAIConsentModal: () => set({ isAIConsentModalVisible: true }),
+      hideAIConsentModal: () => set({ isAIConsentModalVisible: false }),
+
+      // AI Consent actions
+      setAIConsent: (consented) =>
+        set({
+          hasConsentedToAI: consented,
+          aiConsentDate: consented ? new Date().toISOString() : null,
+          isAIConsentModalVisible: false,
+        }),
+      revokeAIConsent: () =>
+        set({
+          hasConsentedToAI: false,
+          aiConsentDate: null,
+        }),
 
       // Usage tracking
       incrementArgumentsToday: () =>
@@ -219,6 +250,8 @@ export const useAppStore = create<AppState>()(
         user: state.user,
         token: state.token,
         isAuthenticated: state.isAuthenticated,
+        hasConsentedToAI: state.hasConsentedToAI,
+        aiConsentDate: state.aiConsentDate,
       }),
       migrate: (persistedState: any, version) => {
         if (persistedState && typeof persistedState.isAuthenticated !== 'boolean') {
@@ -237,3 +270,5 @@ export const useIsPremium = () =>
   useAppStore((state) => state.user?.subscriptionTier === 'premium');
 export const useCurrentArgument = () => useAppStore((state) => state.currentArgument);
 export const useArguments = () => useAppStore((state) => state.arguments);
+export const useHasConsentedToAI = () => useAppStore((state) => state.hasConsentedToAI);
+export const useIsAIConsentModalVisible = () => useAppStore((state) => state.isAIConsentModalVisible);

@@ -7,6 +7,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "privacyPolicy": "https://unexpected-freighter-449.notion.site/Privacy-Policy-2e7d32c8c70180d6bac8d8663c6091cf",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -19,8 +20,9 @@
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "ThirdParty needs access to your microphone to record arguments for judging.",
-        "NSPhotoLibraryUsageDescription": "ThirdParty needs access to your photos to save verdict screenshots.",
-        "NSPhotoLibraryAddUsageDescription": "ThirdParty needs permission to save verdict screenshots to your photo library.",
+        "NSCameraUsageDescription": "ThirdParty needs access to your camera to take victory selfies.",
+        "NSPhotoLibraryUsageDescription": "ThirdParty needs access to your photos to upload screenshots of arguments and save victory selfies.",
+        "NSPhotoLibraryAddUsageDescription": "ThirdParty needs permission to save verdict screenshots and victory selfies to your photo library.",
         "UIBackgroundModes": [
           "audio"
         ]
@@ -54,10 +56,17 @@
         }
       ],
       [
+        "expo-image-picker",
+        {
+          "cameraPermission": "ThirdParty needs access to your camera to take victory selfies.",
+          "photosPermission": "ThirdParty needs access to your photos to upload screenshots of arguments."
+        }
+      ],
+      [
         "expo-media-library",
         {
-          "photosPermission": "Allow ThirdParty to save verdict screenshots to your photos.",
-          "savePhotosPermission": "Allow ThirdParty to save verdict screenshots to your photos."
+          "photosPermission": "Allow ThirdParty to save verdict screenshots and victory selfies to your photos.",
+          "savePhotosPermission": "Allow ThirdParty to save verdict screenshots and victory selfies to your photos."
         }
       ]
     ],

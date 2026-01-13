@@ -14,7 +14,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, typography, spacing, borderRadius, shadows, animation } from '../lib/theme';
-import { useUser } from '../lib/store';
+import { useUser, useHasConsentedToAI, useAppStore } from '../lib/store';
 import { RootStackParamList } from '../navigation';
 import * as Haptics from 'expo-haptics';
 
@@ -119,8 +119,13 @@ function ModeCard({ title, description, icon, gradientColors, glowColor, onPress
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const user = useUser();
+  const hasConsentedToAI = useHasConsentedToAI();
+  const showAIConsentModal = useAppStore((state) => state.showAIConsentModal);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(-30)).current;
+
+  // Store pending navigation to execute after consent
+  const pendingNavigation = useRef<(() => void) | null>(null);
 
   React.useEffect(() => {
     Animated.parallel([
@@ -137,9 +142,26 @@ export default function HomeScreen() {
     ]).start();
   }, []);
 
-  const handleLiveMode = () => navigation.navigate('Setup', { mode: 'live' });
-  const handleTurnBased = () => navigation.navigate('Setup', { mode: 'turn_based' });
-  const handleScreenshot = () => navigation.navigate('Screenshot');
+  // Execute pending navigation when consent is granted
+  React.useEffect(() => {
+    if (hasConsentedToAI && pendingNavigation.current) {
+      pendingNavigation.current();
+      pendingNavigation.current = null;
+    }
+  }, [hasConsentedToAI]);
+
+  const requireConsent = (action: () => void) => {
+    if (hasConsentedToAI) {
+      action();
+    } else {
+      pendingNavigation.current = action;
+      showAIConsentModal();
+    }
+  };
+
+  const handleLiveMode = () => requireConsent(() => navigation.navigate('Setup', { mode: 'live' }));
+  const handleTurnBased = () => requireConsent(() => navigation.navigate('Setup', { mode: 'turn_based' }));
+  const handleScreenshot = () => requireConsent(() => navigation.navigate('Screenshot'));
 
   const remainingArguments = 3 - (user?.argumentsToday || 0);
   const isPremium = user?.subscriptionTier === 'premium';
