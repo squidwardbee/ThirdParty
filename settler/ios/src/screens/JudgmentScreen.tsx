@@ -25,7 +25,9 @@ import { RootStackParamList } from '../navigation';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
-import { Image } from 'react-native';
+import { Image, Dimensions } from 'react-native';
+
+const winnerOverlay = require('../../assets/winner-overlay.png');
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Judgment'>;
 
@@ -61,6 +63,7 @@ export default function JudgmentScreen({ navigation, route }: Props) {
 
   const soundRef = useRef<Audio.Sound | null>(null);
   const viewShotRef = useRef<ViewShot>(null);
+  const selfieViewShotRef = useRef<ViewShot>(null);
   const addArgument = useAppStore((state) => state.addArgument);
 
   useEffect(() => {
@@ -262,29 +265,32 @@ export default function JudgmentScreen({ navigation, route }: Props) {
 
   const handleScreenshot = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (!viewShotRef.current) return;
+
+    // Use selfie view if available, otherwise use the judgment card
+    const targetRef = selfieUri && selfieViewShotRef.current ? selfieViewShotRef : viewShotRef;
+    if (!targetRef.current) return;
 
     try {
-      const uri = await captureRef(viewShotRef, {
+      const uri = await captureRef(targetRef, {
         format: 'png',
         quality: 1,
       });
 
-      const isAvailable = await Sharing.isAvailableAsync();
+      // Save to photo library first
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status === 'granted') {
+        await MediaLibrary.saveToLibraryAsync(uri);
+      }
 
+      // Then open share sheet
+      const isAvailable = await Sharing.isAvailableAsync();
       if (isAvailable) {
         await Sharing.shareAsync(uri, {
           mimeType: 'image/png',
-          dialogTitle: 'Share Verdict',
+          dialogTitle: 'Share Your Victory',
         });
       } else {
-        const { status } = await MediaLibrary.requestPermissionsAsync();
-        if (status === 'granted') {
-          await MediaLibrary.saveToLibraryAsync(uri);
-          Alert.alert('Saved!', 'Verdict saved to your photo library');
-        } else {
-          Alert.alert('Permission Required', 'Please grant permission to save photos');
-        }
+        Alert.alert('Saved!', 'Image saved to your photo library');
       }
     } catch (error) {
       console.error('Screenshot error:', error);
@@ -304,7 +310,7 @@ export default function JudgmentScreen({ navigation, route }: Props) {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        aspect: [1, 1],
+        aspect: [9, 16],
         quality: 1,
         cameraType: ImagePicker.CameraType.front,
       });
@@ -501,21 +507,27 @@ export default function JudgmentScreen({ navigation, route }: Props) {
             </View>
 
             {selfieUri && (
-              <Image
-                source={{ uri: selfieUri }}
-                style={styles.selfieOverlay}
-              />
+              <ViewShot ref={selfieViewShotRef} options={{ format: 'png', quality: 1 }} style={styles.selfieContainer}>
+                <Image
+                  source={{ uri: selfieUri }}
+                  style={styles.selfieImage}
+                />
+                <Image
+                  source={winnerOverlay}
+                  style={styles.selfieFrame}
+                />
+              </ViewShot>
             )}
           </ViewShot>
 
           {/* Actions */}
           <Animated.View style={[styles.actions, { opacity: fadeAnim }]}>
             <TouchableOpacity
-              style={styles.actionButton}
+              style={[styles.actionButton, selfieUri && styles.actionButtonActive]}
               onPress={handleTakeSelfie}
               activeOpacity={0.7}
             >
-              <Feather name="camera" size={20} color={colors.textPrimary} />
+              <Feather name="user" size={20} color={selfieUri ? colors.primary : colors.textPrimary} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -523,7 +535,7 @@ export default function JudgmentScreen({ navigation, route }: Props) {
               onPress={handleScreenshot}
               activeOpacity={0.7}
             >
-              <Feather name="share" size={20} color={colors.textPrimary} />
+              <Feather name="share-2" size={20} color={colors.textPrimary} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -747,6 +759,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  actionButtonActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryGlow,
+  },
   primaryButton: {
     flex: 1,
     height: 52,
@@ -760,23 +776,32 @@ const styles = StyleSheet.create({
     ...typography.button,
     color: colors.textInverse,
   },
-  selfieOverlay: {
+  selfieContainer: {
     position: 'absolute',
-    bottom: spacing.lg,
-    right: spacing.lg,
-    width: 120,
-    height: 150,
-    backgroundColor: '#fff',
-    padding: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ccc',
+    bottom: spacing.md,
+    right: spacing.md,
+    width: 180,
+    height: 320,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-    justifyContent: 'flex-start',
-    alignItems: 'center',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  selfieImage: {
+    position: 'absolute',
+    top: '12%',
+    left: '5%',
+    right: '5%',
+    bottom: '12%',
+    borderRadius: 4,
+  },
+  selfieFrame: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    resizeMode: 'stretch',
   },
 });

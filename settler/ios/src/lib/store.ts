@@ -103,6 +103,10 @@ interface AppState {
   // UI actions
   showUpgradeModal: () => void;
   hideUpgradeModal: () => void;
+
+  // Usage tracking
+  incrementArgumentsToday: () => void;
+  setArgumentsToday: (count: number) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -194,6 +198,18 @@ export const useAppStore = create<AppState>()(
       // UI actions
       showUpgradeModal: () => set({ isUpgradeModalVisible: true }),
       hideUpgradeModal: () => set({ isUpgradeModalVisible: false }),
+
+      // Usage tracking
+      incrementArgumentsToday: () =>
+        set((state) => ({
+          user: state.user
+            ? { ...state.user, argumentsToday: state.user.argumentsToday + 1 }
+            : null,
+        })),
+      setArgumentsToday: (count) =>
+        set((state) => ({
+          user: state.user ? { ...state.user, argumentsToday: count } : null,
+        })),
     }),
     {
       name: 'settler-storage',

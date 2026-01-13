@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, shadows } from '../lib/theme';
 import { api } from '../lib/api';
+import { useAppStore } from '../lib/store';
 import { RootStackParamList } from '../navigation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Screenshot'>;
@@ -24,6 +25,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Screenshot'>;
 export default function ScreenshotScreen({ navigation }: Props) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const setArgumentsToday = useAppStore((state) => state.setArgumentsToday);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -127,12 +129,14 @@ export default function ScreenshotScreen({ navigation }: Props) {
         const mimeType = selectedImage.toLowerCase().includes('.png') ? 'image/png' : 'image/jpeg';
 
         const response2 = await api.judgeScreenshot(base64, mimeType);
+        setArgumentsToday(3 - response2.remainingToday);
         navigation.replace('Judgment', { argumentId: response2.argument.id });
       } else {
         const base64 = result.assets[0].base64;
         const mimeType = result.assets[0].mimeType || 'image/jpeg';
 
         const response = await api.judgeScreenshot(base64, mimeType);
+        setArgumentsToday(3 - response.remainingToday);
         navigation.replace('Judgment', { argumentId: response.argument.id });
       }
     } catch (error) {

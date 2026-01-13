@@ -11,6 +11,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, typography, spacing, borderRadius } from '../lib/theme';
 import { api } from '../lib/api';
+import { useAppStore } from '../lib/store';
 import { RootStackParamList } from '../navigation';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 
@@ -30,6 +31,7 @@ export default function ProcessingScreen({ navigation, route }: Props) {
   const { argumentId } = route.params;
   const [messageIndex, setMessageIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const incrementArgumentsToday = useAppStore((state) => state.incrementArgumentsToday);
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -129,6 +131,7 @@ export default function ProcessingScreen({ navigation, route }: Props) {
     const requestJudgment = async () => {
       try {
         await api.requestJudgment(argumentId);
+        incrementArgumentsToday();
         navigation.replace('Judgment', { argumentId });
       } catch (err) {
         console.error('Judgment error:', err);
@@ -144,7 +147,7 @@ export default function ProcessingScreen({ navigation, route }: Props) {
       pulse.stop();
       glow.stop();
     };
-  }, [argumentId, navigation]);
+  }, [argumentId, navigation, incrementArgumentsToday]);
 
   const rotateInterpolate = rotateAnim.interpolate({
     inputRange: [0, 1],
